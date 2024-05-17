@@ -67,7 +67,7 @@ func (h H) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if errors.Is(err, io.EOF) {
 		// there was no request body to parse.
-		err = nil 
+		err = nil
 		body = nil
 	} else if err != nil {
 		// the request body could not be parsed into a JSON:API document.

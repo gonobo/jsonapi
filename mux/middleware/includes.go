@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gonobo/jsonapi"
-	"github.com/gonobo/jsonapi/response"
 	"github.com/gonobo/jsonapi/mux"
+	"github.com/gonobo/jsonapi/response"
 )
 
 // ResolvesIncludedResources adds middleware that resolves client include requests.

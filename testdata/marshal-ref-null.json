@@ -1,0 +1,10 @@
+{
+  "data": null,
+  "links": {
+    "related": "/nodes/42/one",
+    "self": "/nodes/42/relationships/one"
+  },
+  "meta": {
+    "one": { "foo": "bar" }
+  }
+}

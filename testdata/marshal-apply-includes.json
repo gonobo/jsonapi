@@ -1,0 +1,102 @@
+{
+  "data": {
+    "attributes": { "value": "some-value" },
+    "id": "42",
+    "links": { "self": "/nodes/42" },
+    "meta": {
+      "root": { "foo": "bar" }
+    },
+    "relationships": {
+      "links-only": {
+        "links": {
+          "related": "/nodes/42/links-only",
+          "self": "/nodes/42/relationships/links-only"
+        },
+        "meta": {
+          "links-only": { "foo": "bar" }
+        }
+      },
+      "many": {
+        "data": [
+          {
+            "id": "1",
+            "meta": {
+              "root": { "foo": "bar" }
+            },
+            "type": "nodes"
+          }
+        ],
+        "links": {
+          "related": "/nodes/42/many",
+          "self": "/nodes/42/relationships/many"
+        },
+        "meta": {
+          "many": { "foo": "bar" }
+        }
+      },
+      "one": {
+        "data": {
+          "id": "1",
+          "meta": {
+            "root": { "foo": "bar" }
+          },
+          "type": "nodes"
+        },
+        "links": {
+          "related": "/nodes/42/one",
+          "self": "/nodes/42/relationships/one"
+        },
+        "meta": {
+          "one": { "foo": "bar" }
+        }
+      }
+    },
+    "type": "nodes"
+  },
+  "included": [
+    {
+      "attributes": {
+        "value": "other-value"
+      },
+      "id": "1",
+      "links": {
+        "self": "/nodes/1"
+      },
+      "meta": {
+        "root": { "foo": "bar" }
+      },
+      "relationships": {
+        "links-only": {
+          "links": {
+            "related": "/nodes/1/links-only",
+            "self": "/nodes/1/relationships/links-only"
+          },
+          "meta": {
+            "links-only": { "foo": "bar" }
+          }
+        },
+        "many": {
+          "data": [],
+          "links": {
+            "related": "/nodes/1/many",
+            "self": "/nodes/1/relationships/many"
+          },
+          "meta": {
+            "many": { "foo": "bar" }
+          }
+        },
+        "one": {
+          "data": null,
+          "links": {
+            "related": "/nodes/1/one",
+            "self": "/nodes/1/relationships/one"
+          },
+          "meta": {
+            "one": { "foo": "bar" }
+          }
+        }
+      },
+      "type": "nodes"
+    }
+  ]
+}

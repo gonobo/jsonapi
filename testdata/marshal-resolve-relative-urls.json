@@ -1,0 +1,42 @@
+{
+  "data": {
+    "attributes": { "value": "some-value" },
+    "id": "42",
+    "links": { "self": "http://www.example.com/nodes/42" },
+    "meta": {
+      "root": { "foo": "bar" }
+    },
+    "relationships": {
+      "links-only": {
+        "links": {
+          "related": "http://www.example.com/nodes/42/links-only",
+          "self": "http://www.example.com/nodes/42/relationships/links-only"
+        },
+        "meta": {
+          "links-only": { "foo": "bar" }
+        }
+      },
+      "many": {
+        "data": [],
+        "links": {
+          "related": "http://www.example.com/nodes/42/many",
+          "self": "http://www.example.com/nodes/42/relationships/many"
+        },
+        "meta": {
+          "many": { "foo": "bar" }
+        }
+      },
+      "one": {
+        "data": null,
+        "links": {
+          "related": "http://www.example.com/nodes/42/one",
+          "self": "http://www.example.com/nodes/42/relationships/one"
+        },
+        "meta": {
+          "one": { "foo": "bar" }
+        }
+      }
+    },
+    "type": "nodes"
+  }
+}

@@ -48,7 +48,7 @@ func (r Route) serveRelationship(ctx *jsonapi.RequestContext, req *http.Request)
 	switch req.Method {
 	case http.MethodGet:
 		if r.GetRef != nil {
-			return r.GetRef.ServeJSONAPI(req)
+			return r.Get.ServeJSONAPI(req)
 		}
 	case http.MethodPost:
 		if r.AddRef != nil {

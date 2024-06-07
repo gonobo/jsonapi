@@ -8,7 +8,7 @@ import (
 	"github.com/gonobo/jsonapi"
 )
 
-// NewRequestPayload creates a new http.Request using a jsonapi.Document as payload,
+// NewRequest creates a new http.Request using a jsonapi.Document as payload,
 // suitable for passing to an [http.Handler] for testing.
 func NewRequest(method string, target string, doc jsonapi.Document) *http.Request {
 	return httptest.NewRequest(method, target, requestPayload(doc))

@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gonobo/jsonapi"
-	"github.com/gonobo/jsonapi/response"
 	"github.com/gonobo/jsonapi/mux"
+	"github.com/gonobo/jsonapi/response"
 )
 
 // ResolvesRelatedResources adds middleware that resolves related resource requests.

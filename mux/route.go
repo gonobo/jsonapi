@@ -48,7 +48,7 @@ func (r Route) serveRelationship(ctx *jsonapi.RequestContext, req *http.Request)
 	switch req.Method {
 	case http.MethodGet:
 		if r.GetRef != nil {
-			return r.Get.ServeJSONAPI(req)
+			return r.GetRef.ServeJSONAPI(req)
 		}
 	case http.MethodPost:
 		if r.AddRef != nil {
@@ -56,7 +56,7 @@ func (r Route) serveRelationship(ctx *jsonapi.RequestContext, req *http.Request)
 		}
 	case http.MethodPatch:
 		if r.UpdateRef != nil {
-			r.UpdateRef.ServeJSONAPI(req)
+			return r.UpdateRef.ServeJSONAPI(req)
 		}
 	case http.MethodDelete:
 		if r.RemoveRef != nil {
@@ -71,7 +71,7 @@ func (r Route) serveResource(ctx *jsonapi.RequestContext, req *http.Request) jso
 	switch req.Method {
 	case http.MethodGet:
 		if r.Get != nil {
-			return r.GetRef.ServeJSONAPI(req)
+			return r.Get.ServeJSONAPI(req)
 		}
 	case http.MethodPatch:
 		if r.Update != nil {

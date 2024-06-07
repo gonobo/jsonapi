@@ -8,10 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type typedef string
+
 type SimpleItem struct {
-	ID     string `jsonapi:"primary,items"`
-	Value1 string `jsonapi:"attr,value1"`
-	Value2 string `jsonapi:"attr,value2,omitempty"`
+	ID     string  `jsonapi:"primary,items"`
+	Value1 string  `jsonapi:"attr,value1"`
+	Value2 string  `jsonapi:"attr,value2,omitempty"`
+	Value3 typedef `jsonapi:"attr,value3,omitempty"`
 	Omit   any
 }
 
@@ -403,6 +406,7 @@ func TestUnmarshalResource(t *testing.T) {
 			Type: "items",
 			Attributes: map[string]any{
 				"value1": "foo",
+				"value3": "bar",
 			},
 			Links: jsonapi.Links{},
 			Meta:  jsonapi.Meta{},
@@ -411,7 +415,7 @@ func TestUnmarshalResource(t *testing.T) {
 		err := jsonapi.UnmarshalResource(&in, &out)
 		assert.NoError(t, err)
 
-		want := SimpleItem{ID: "1", Value1: "foo"}
+		want := SimpleItem{ID: "1", Value1: "foo", Value3: typedef("bar")}
 		assert.EqualValues(t, want, out)
 	})
 

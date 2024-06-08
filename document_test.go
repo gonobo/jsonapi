@@ -42,6 +42,49 @@ func runMarshalJSONTest[T any](t *testing.T, tc testcase[T]) {
 	})
 }
 
+func TestFirst(t *testing.T) {
+	type testcase struct {
+		name      string
+		data      jsonapi.PrimaryData
+		want      *jsonapi.Resource
+		wantPanic bool
+	}
+
+	for _, tc := range []testcase{
+		{
+			name: "one",
+			data: jsonapi.One{Value: &jsonapi.Resource{}},
+			want: &jsonapi.Resource{},
+		},
+		{
+			name: "one but null",
+			data: jsonapi.One{},
+			want: nil,
+		},
+		{
+			name: "many",
+			data: jsonapi.Many{Value: []*jsonapi.Resource{{}}},
+			want: &jsonapi.Resource{},
+		},
+		{
+			name:      "nil",
+			data:      nil,
+			wantPanic: true,
+		},
+	} {
+		doc := jsonapi.Document{Data: tc.data}
+		if tc.wantPanic {
+			assert.Panics(t, func() {
+				jsonapi.First(doc.Data)
+			})
+			return
+		}
+
+		got := jsonapi.First(doc.Data)
+		assert.EqualValues(t, tc.want, got)
+	}
+}
+
 func TestNewSingleDocument(t *testing.T) {
 	doc := jsonapi.NewSingleDocument(&jsonapi.Resource{ID: "1", Type: "item"})
 	assert.EqualValues(t, &jsonapi.Document{

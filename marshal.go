@@ -313,20 +313,22 @@ func unmarshalAttribute(node *Resource, value reflect.Value, tokens []string) er
 
 	errs := make([]error, 0)
 	attrValue := reflect.ValueOf(attr)
+	vtype := value.Type()
 	if attrValue.Kind() == reflect.Map || attrValue.Kind() == reflect.Slice {
 		// the attribute was a JSON object or array,
 		// so leverage JSON marshaling/unmarshaling.
 		data, err := json.Marshal(attr)
 		errs = append(errs, err)
 
-		vtype := value.Type()
 		ptr := newItem(vtype)
 		ptrValue := ptr.Interface()
 		errs = append(errs, json.Unmarshal(data, &ptrValue))
 
 		setValue(vtype, value, ptr)
-	} else {
+	} else if attrValue.Type().AssignableTo(vtype) {
 		value.Set(reflect.ValueOf(attr))
+	} else if attrValue.CanConvert(vtype) {
+		value.Set(attrValue.Convert(vtype))
 	}
 
 	return errors.Join(errs...)

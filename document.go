@@ -364,6 +364,19 @@ type PrimaryData interface {
 	IsMany() bool
 }
 
+// First returns the first item in a primary data node -- the node itself for single or "one"
+// primary data, or the first element in multi or "many" primary data.
+//
+// If the data node is set to "null" (a jsonapi.One instance with a nil value) then nil is returned.
+// If the data node itself is nil, First() panics.
+func First(data PrimaryData) *Resource {
+	items := data.Items()
+	if len(items) == 0 {
+		return nil
+	}
+	return items[0]
+}
+
 // IsMany returns false, as this is a "to-one" relationship.
 func (One) IsMany() bool { return false }
 

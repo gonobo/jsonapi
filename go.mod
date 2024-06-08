@@ -3,7 +3,7 @@ module github.com/gonobo/jsonapi
 go 1.22.3
 
 require (
-	github.com/gonobo/validator v0.0.3
+	github.com/gonobo/validator v0.0.6
 	github.com/stretchr/testify v1.9.0
 )
 

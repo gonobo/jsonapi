@@ -59,8 +59,8 @@ func TestHandler(t *testing.T) {
 		},
 		{
 			name: "handler func returns ok - create request",
-			req: jsonapitest.NewRequest("POST", "http://example.com/items",
-				*jsonapi.NewSingleDocument(&jsonapi.Resource{ID: "1", Type: "items"}),
+			req: httptest.NewRequest("POST", "http://example.com/items",
+				jsonapitest.Body(*jsonapi.NewSingleDocument(&jsonapi.Resource{ID: "1", Type: "items"})),
 			),
 			handler: jsonapi.HandlerFunc(func(r *http.Request) jsonapi.Response {
 				res := jsonapi.NewResponse(http.StatusCreated)

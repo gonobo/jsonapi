@@ -295,6 +295,24 @@ func (r Resource) Ref() *Resource {
 	}
 }
 
+// MarshalJSONAPI returns a shallow copy of this resource.
+func (r Resource) MarshalJSONAPI() (*Resource, error) {
+	return &r, nil
+}
+
+// UnmarshalJSONAPI extracts information from a resource node and populates itself.
+func (r *Resource) UnmarshalJSONAPI(other *Resource) error {
+	r.Attributes = other.Attributes
+	r.Extensions = other.Extensions
+	r.ID = other.ID
+	r.Type = other.Type
+	r.Links = other.Links
+	r.LocalID = other.LocalID
+	r.Meta = other.Meta
+	r.Relationships = other.Relationships
+	return nil
+}
+
 func (r Resource) nodeid() string {
 	return fmt.Sprint(r.Type, r.ID)
 }

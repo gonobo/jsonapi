@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
-	//	"log"
 	"reflect"
 	"strings"
 )
@@ -26,11 +24,16 @@ const (
 // If the value is a slice or array, then a many document is returned, using the
 // value as primary data.
 //
-// The options parameter is a list of functions that can be used to modify the
-// document before it is returned.
-//
-// Use the document options to modify the document during marshaling.
+// Marshaling Document structs simply returns a copy of the instance.
 func Marshal(in any) (Document, error) {
+	// if the input is already a document, return it.
+	if doc, ok := in.(Document); ok {
+		return doc, nil
+	} else if doc, ok := in.(*Document); ok {
+		return *doc, nil
+	}
+
+	// use reflection to determine if the document has single or multiple primary data.
 	rtype := reflect.TypeOf(in)
 	switch rtype.Kind() {
 	case reflect.Slice:
@@ -184,10 +187,52 @@ func MarshalRaw(value any) (*json.RawMessage, error) {
 	return &raw, err
 }
 
+// Unmarshal populates the output struct or slice with information
+// stored inside the provided document. Struct fields must either be properly
+// tagged with "jsonapi:" or the struct must implement the
+// UnmarshalResourceJSONAPI() method.
+func Unmarshal(doc *Document, out any) error {
+	// use reflection to determine if the document has single or multiple primary data.
+	rtype := reflect.TypeOf(out)
+
+	if rtype.Kind() != reflect.Pointer {
+		return jsonapiError("unmarshal: output must be a pointer to a struct, slice, or array")
+	}
+
+	ptrKind := pointerKind(reflect.ValueOf(out))
+	switch ptrKind {
+	case reflect.Slice:
+		fallthrough
+	case reflect.Array:
+		return unmarshalManyDocument(doc, out)
+	default:
+		return unmarshalOneDocument(doc, out)
+	}
+}
+
+func unmarshalOneDocument(doc *Document, out any) error {
+	item := First(doc.Data)
+	return unmarshalResource(item, reflect.ValueOf(out))
+}
+
+func unmarshalManyDocument(doc *Document, out any) error {
+	slice := reflect.Indirect(reflect.ValueOf(out))
+	errs := make([]error, 0)
+
+	for _, resource := range doc.Data.Items() {
+		itemType := slice.Type().Elem()
+		item := newItem(itemType)
+		errs = append(errs, unmarshalResource(resource, item))
+		slice.Set(appendSlice(itemType, slice, item))
+	}
+
+	return errors.Join(errs...)
+}
+
 // UnmarshalResource populates the output struct's fields with information
 // stored inside the provided resource node. Fields must either be properly
 // tagged with "jsonapi:" or the struct must implement the
-// UnmarshalResourceJSONAPI() method.
+// UnmarshalJSONAPI() method.
 func UnmarshalResource(node *Resource, out any) error {
 	return unmarshalResource(node, reflect.ValueOf(out))
 }
@@ -280,6 +325,10 @@ func unmarshalResource(node *Resource, root reflect.Value) error {
 
 func isNilValue(value reflect.Value) bool {
 	return value.Kind() == reflect.Pointer && value.IsNil()
+}
+
+func pointerKind(value reflect.Value) reflect.Kind {
+	return reflect.Indirect(value).Type().Kind()
 }
 
 func omitEmptyValue(value reflect.Value, omitempty bool) bool {

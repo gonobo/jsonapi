@@ -351,6 +351,20 @@ func TestMarshalResource(t *testing.T) {
 }
 
 func TestUnmarshalResource(t *testing.T) {
+	t.Run("identity", func(t *testing.T) {
+		in := jsonapi.Resource{
+			ID:         "1",
+			Type:       "items",
+			Attributes: map[string]any{"value1": "foo", "value2": "bar"},
+			Links:      jsonapi.Links{},
+			Meta:       jsonapi.Meta{},
+		}
+		out := jsonapi.Resource{}
+		err := jsonapi.UnmarshalResource(&in, &out)
+		assert.NoError(t, err)
+		assert.EqualValues(t, in, out)
+	})
+
 	t.Run("nil value", func(t *testing.T) {
 		in := jsonapi.Resource{ID: "1", Type: "items"}
 		var out *SimpleItem = nil
@@ -543,6 +557,25 @@ func TestMarshal(t *testing.T) {
 	}
 
 	for _, tc := range []testcase{
+		{
+			name: "marshal resource",
+			in: &jsonapi.Resource{
+				ID:            "1",
+				Type:          "items",
+				Attributes:    map[string]any{"value1": ""},
+				Relationships: map[string]*jsonapi.Relationship{},
+			},
+			want: jsonapi.Document{
+				Data: jsonapi.One{
+					Value: &jsonapi.Resource{
+						ID:            "1",
+						Type:          "items",
+						Attributes:    map[string]any{"value1": ""},
+						Relationships: map[string]*jsonapi.Relationship{},
+					},
+				},
+			},
+		},
 		{
 			name: "marshal one resource",
 			in:   SimpleItem{ID: "1"},

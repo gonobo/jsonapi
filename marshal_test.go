@@ -350,6 +350,67 @@ func TestMarshalResource(t *testing.T) {
 	})
 }
 
+func TestUnmarshal(t *testing.T) {
+	t.Run("error when passing in a non-pointer", func(t *testing.T) {
+		in := jsonapi.NewSingleDocument(&jsonapi.Resource{
+			ID:         "1",
+			Type:       "items",
+			Attributes: map[string]any{"value": "foo"},
+			Links:      jsonapi.Links{},
+			Meta:       jsonapi.Meta{},
+		})
+		var out SimpleItem
+		err := jsonapi.Unmarshal(in, out)
+		assert.Error(t, err)
+	})
+
+	t.Run("single struct", func(t *testing.T) {
+		in := jsonapi.NewSingleDocument(&jsonapi.Resource{
+			ID:         "1",
+			Type:       "override-items",
+			Attributes: map[string]any{"value": "foo"},
+			Links:      jsonapi.Links{},
+			Meta:       jsonapi.Meta{},
+			Relationships: jsonapi.RelationshipsNode{
+				"item": &jsonapi.Relationship{
+					Links: jsonapi.Links{},
+					Meta:  jsonapi.Meta{},
+				},
+			},
+		})
+
+		out := MarshalOverrideItem{}
+		err := jsonapi.Unmarshal(in, &out)
+		assert.NoError(t, err)
+
+		want := MarshalOverrideItem{ID: "1", Value: "foo"}
+		assert.EqualValues(t, want, out)
+	})
+
+	t.Run("slice of structs", func(t *testing.T) {
+		in := jsonapi.NewMultiDocument(&jsonapi.Resource{
+			ID:         "1",
+			Type:       "override-items",
+			Attributes: map[string]any{"value": "foo"},
+			Links:      jsonapi.Links{},
+			Meta:       jsonapi.Meta{},
+			Relationships: jsonapi.RelationshipsNode{
+				"item": &jsonapi.Relationship{
+					Links: jsonapi.Links{},
+					Meta:  jsonapi.Meta{},
+				},
+			},
+		})
+
+		out := []MarshalOverrideItem{}
+		err := jsonapi.Unmarshal(in, &out)
+		assert.NoError(t, err)
+
+		want := []MarshalOverrideItem{{ID: "1", Value: "foo"}}
+		assert.ElementsMatch(t, want, out)
+	})
+}
+
 func TestUnmarshalResource(t *testing.T) {
 	t.Run("identity", func(t *testing.T) {
 		in := jsonapi.Resource{
@@ -557,6 +618,52 @@ func TestMarshal(t *testing.T) {
 	}
 
 	for _, tc := range []testcase{
+		{
+			name: "marshal document",
+			in: jsonapi.Document{
+				Data: jsonapi.One{
+					Value: &jsonapi.Resource{
+						ID:            "1",
+						Type:          "items",
+						Attributes:    map[string]any{"value1": ""},
+						Relationships: map[string]*jsonapi.Relationship{},
+					},
+				},
+			},
+			want: jsonapi.Document{
+				Data: jsonapi.One{
+					Value: &jsonapi.Resource{
+						ID:            "1",
+						Type:          "items",
+						Attributes:    map[string]any{"value1": ""},
+						Relationships: map[string]*jsonapi.Relationship{},
+					},
+				},
+			},
+		},
+		{
+			name: "marshal document pointer",
+			in: &jsonapi.Document{
+				Data: jsonapi.One{
+					Value: &jsonapi.Resource{
+						ID:            "1",
+						Type:          "items",
+						Attributes:    map[string]any{"value1": ""},
+						Relationships: map[string]*jsonapi.Relationship{},
+					},
+				},
+			},
+			want: jsonapi.Document{
+				Data: jsonapi.One{
+					Value: &jsonapi.Resource{
+						ID:            "1",
+						Type:          "items",
+						Attributes:    map[string]any{"value1": ""},
+						Relationships: map[string]*jsonapi.Relationship{},
+					},
+				},
+			},
+		},
 		{
 			name: "marshal resource",
 			in: &jsonapi.Resource{

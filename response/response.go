@@ -26,9 +26,9 @@ func WithHeader(key, value string) jsonapi.ResponseOption {
 	}
 }
 
-// Ok returns a 200 response containing a JSONAPI document. The input value is marshaled
-// into the primary data of the JSONAPI document.
-func Ok(in any, opts ...jsonapi.ResponseOption) jsonapi.Response {
+// Write writes a JSONAPI document to the response.
+// The input value is marshaled into the primary data of the JSONAPI document.
+func Write(status int, in any, opts ...jsonapi.ResponseOption) jsonapi.Response {
 	doc, err := jsonapi.Marshal(in)
 	if err != nil {
 		return InternalError(fmt.Errorf("response failed: %s", err))
@@ -38,24 +38,24 @@ func Ok(in any, opts ...jsonapi.ResponseOption) jsonapi.Response {
 		j.Body = &doc
 	}}, opts...)
 
-	return jsonapi.NewResponse(http.StatusOK, opts...)
+	return jsonapi.NewResponse(status, opts...)
+}
+
+// Ok returns a 200 response containing a JSONAPI document. The input value is marshaled
+// into the primary data of the JSONAPI document.
+func Ok(in any, opts ...jsonapi.ResponseOption) jsonapi.Response {
+	return Write(http.StatusOK, in, opts...)
 }
 
 // Created returns a 201 response containing a JSONAPI document.
 // The input value is marshaled into the primary data of the JSONAPI document.
 func Created(in any, opts ...jsonapi.ResponseOption) jsonapi.Response {
-	doc, err := jsonapi.Marshal(in)
-	if err != nil {
-		return InternalError(fmt.Errorf("response failed: %s", err))
-	}
+	return Write(http.StatusCreated, in, opts...)
+}
 
-	opts = append([]jsonapi.ResponseOption{
-		func(j *jsonapi.Response) {
-			j.Body = &doc
-		},
-	}, opts...)
-
-	return jsonapi.NewResponse(http.StatusCreated, opts...)
+// NoContent returns a 204 response.
+func NoContent() jsonapi.Response {
+	return jsonapi.NewResponse(http.StatusNoContent)
 }
 
 // Error returns a response containing one or more errors.

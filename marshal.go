@@ -23,7 +23,7 @@ const (
 // is a struct, then a single document is returned, using the value as primary data.
 // If the value is a slice or array, then a many document is returned, using the
 // value as primary data.
-
+//
 // Marshaling Document structs simply returns a copy of the instance.
 func Marshal(in any) (Document, error) {
 	// if the input is already a document, return it.

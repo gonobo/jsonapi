@@ -1,6 +1,8 @@
 package response
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gonobo/jsonapi"
@@ -24,20 +26,32 @@ func WithHeader(key, value string) jsonapi.ResponseOption {
 	}
 }
 
-// Ok returns a 200 response containing a JSONAPI document.
-func Ok(body *jsonapi.Document, opts ...jsonapi.ResponseOption) jsonapi.Response {
+// Ok returns a 200 response containing a JSONAPI document. The input value is marshaled
+// into the primary data of the JSONAPI document.
+func Ok(in any, opts ...jsonapi.ResponseOption) jsonapi.Response {
+	doc, err := jsonapi.Marshal(in)
+	if err != nil {
+		return InternalError(fmt.Errorf("response failed: %s", err))
+	}
+
 	opts = append([]jsonapi.ResponseOption{func(j *jsonapi.Response) {
-		j.Body = body
+		j.Body = &doc
 	}}, opts...)
 
 	return jsonapi.NewResponse(http.StatusOK, opts...)
 }
 
-// Created returns a 201 response containing a JSONAPI document and location header.
-func Created(resource *jsonapi.Resource, opts ...jsonapi.ResponseOption) jsonapi.Response {
+// Created returns a 201 response containing a JSONAPI document.
+// The input value is marshaled into the primary data of the JSONAPI document.
+func Created(in any, opts ...jsonapi.ResponseOption) jsonapi.Response {
+	doc, err := jsonapi.Marshal(in)
+	if err != nil {
+		return InternalError(fmt.Errorf("response failed: %s", err))
+	}
+
 	opts = append([]jsonapi.ResponseOption{
 		func(j *jsonapi.Response) {
-			j.Body = &jsonapi.Document{Data: jsonapi.One{Value: resource}}
+			j.Body = &doc
 		},
 	}, opts...)
 
@@ -54,7 +68,9 @@ func Error(statusCode int, cause error, opts ...jsonapi.ResponseOption) jsonapi.
 }
 
 // ResourceNotFound sends a JSONAPI formatted 404 error response to the client.
+// Deprecated: Use response.NotFound instead.
 func ResourceNotFound(ctx *jsonapi.RequestContext) jsonapi.Response {
+	log.Println("response.ResourceNotFound() is deprecated and will be removed in a future release. Use response.NotFound instead.")
 	return Error(http.StatusNotFound, jsonapi.Error{
 		Status: http.StatusText(http.StatusNotFound),
 		Title:  "Resource Not Found",
@@ -64,6 +80,15 @@ func ResourceNotFound(ctx *jsonapi.RequestContext) jsonapi.Response {
 			"id":           ctx.ResourceID,
 			"relationship": ctx.Relationship,
 		},
+	})
+}
+
+// NotFound sends a JSONAPI formatted 404 error response to the client.
+func NotFound() jsonapi.Response {
+	return Error(http.StatusNotFound, jsonapi.Error{
+		Status: http.StatusText(http.StatusNotFound),
+		Title:  "Resource Not Found",
+		Detail: "The requested resource was not found.",
 	})
 }
 

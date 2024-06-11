@@ -19,7 +19,7 @@ func ProvidesResourceLocationHeader(provider LocationHeaderProvider) jsonapi.Mid
 		return jsonapi.HandlerFunc(func(r *http.Request) jsonapi.Response {
 			res := next.ServeJSONAPI(r)
 			if res.Code == http.StatusCreated && res.Body != nil && res.Body.Data != nil {
-				item := res.Body.Data.Items()[0]
+				item := jsonapi.First(res.Body.Data)
 				location := provider.LocationHeader(item)
 				res.Headers["Location"] = location
 			}

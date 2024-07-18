@@ -379,6 +379,35 @@ func TestDocumentMarshalJSON(t *testing.T) {
 	})
 }
 
+func TestDocumentUnmarshalJSON(t *testing.T) {
+	type testcase struct {
+		name    string
+		data    string
+		want    jsonapi.Document
+		wantErr bool
+	}
+
+	for _, tc := range []testcase{
+		{
+			name:    "empty object",
+			data:    "{}",
+			want:    jsonapi.Document{},
+			wantErr: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := jsonapi.Document{}
+			err := json.Unmarshal([]byte(tc.data), &got)
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.EqualValues(t, tc.want, got)
+		})
+	}
+}
+
 func TestErrorNode(t *testing.T) {
 	t.Run("implements error interface", func(t *testing.T) {
 		node := jsonapi.Error{Title: "Bad Request", Detail: "bad request error"}

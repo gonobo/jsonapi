@@ -351,6 +351,20 @@ func TestMarshalResource(t *testing.T) {
 }
 
 func TestUnmarshal(t *testing.T) {
+	t.Run("error when document primary data is null", func(t *testing.T) {
+		in := jsonapi.NewSingleDocument(nil)
+		var out SimpleItem
+		err := jsonapi.Unmarshal(in, &out)
+		assert.Error(t, err)
+	})
+
+	t.Run("error when document fields are zero value", func(t *testing.T) {
+		in := jsonapi.Document{}
+		var out SimpleItem
+		err := jsonapi.Unmarshal(&in, &out)
+		assert.Error(t, err)
+	})
+
 	t.Run("error when passing in a non-pointer", func(t *testing.T) {
 		in := jsonapi.NewSingleDocument(&jsonapi.Resource{
 			ID:         "1",

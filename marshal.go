@@ -213,7 +213,7 @@ func Unmarshal(doc *Document, out any) error {
 func unmarshalOneDocument(doc *Document, out any) error {
 	if doc.Data == nil {
 		return jsonapiError("unmarshal: primary data is null or missing")
-	} else if item := First(doc.Data); item == nil {
+	} else if item := doc.Data.First(); item == nil {
 		return jsonapiError("unmarshal: primary data is null or missing")
 	} else {
 		return unmarshalResource(item, reflect.ValueOf(out))

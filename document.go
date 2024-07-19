@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"slices"
 	"sort"
 	"strings"
@@ -380,14 +381,24 @@ type PrimaryData interface {
 	Items() []*Resource
 	// IsMany returns true if the data represents a "to-many" relationship or collection of primary data.
 	IsMany() bool
+	// First returns the first item in a primary data node -- the node itself for single or "one"
+	// primary data, or the first element in multi or "many" primary data.
+	//
+	// If the data node is set to "null" (a jsonapi.One instance with a nil value) then nil is returned.
+	// If the data node itself is nil, First() panics.
+	First() *Resource
 }
 
+// First is deprecated and will be removed in the next major release. Use the First()
+// method on the PrimaryData interface instead.
+//
 // First returns the first item in a primary data node -- the node itself for single or "one"
 // primary data, or the first element in multi or "many" primary data.
 //
 // If the data node is set to "null" (a jsonapi.One instance with a nil value) then nil is returned.
 // If the data node itself is nil, First() panics.
 func First(data PrimaryData) *Resource {
+	log.Println("The First() function is deprecated and will be removed in the next major release. Use the PrimaryData.First() method instead.")
 	items := data.Items()
 	if len(items) == 0 {
 		return nil
@@ -404,6 +415,11 @@ func (Many) IsMany() bool { return true }
 // One is a data node that represents either a "to-one" relationship or a document's primary data.
 type One struct {
 	Value *Resource `json:"-"` // Value is the single resource.
+}
+
+// First returns the resource value (if present) or nil.
+func (o One) First() *Resource {
+	return o.Value
 }
 
 // MarshalJSON serializes the node to JSON.
@@ -433,6 +449,11 @@ func (o One) Items() []*Resource {
 // Many is a data node that represents a "to-many" relationship or a document's primary data.
 type Many struct {
 	Value []*Resource `json:"-"` // Value is the collection of resources.
+}
+
+// First returns the first item in the array of resources.
+func (m Many) First() *Resource {
+	return m.Value[0]
 }
 
 // MarshalJSON serializes the node to JSON.

@@ -66,7 +66,7 @@ func TestResponseWrite(t *testing.T) {
 		{
 			name: "writes custom to writer",
 			response: jsonapi.NewResponse(http.StatusOK, func(r *jsonapi.Response) {
-				r.Body = &jsonapi.Document{}
+				r.Body = &jsonapi.Document{ValidateOnMarshal: true}
 				r.Headers["x-app-id"] = "1234"
 			}),
 			writer:  httptest.NewRecorder(),

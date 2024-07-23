@@ -20,13 +20,14 @@ const LatestSupportedVersion = "1.1"
 // or collection of resources in response to a client request. Clients also
 // send documents to a server to create or modify existing resources.
 type Document struct {
-	Jsonapi    JSONAPI                     // The JSON:API object.
-	Data       PrimaryData                 // The primary data.
-	Meta       Meta                        // Top-level metadata.
-	Links      Links                       // Top-level links.
-	Errors     []*Error                    // Server response errors.
-	Included   []*Resource                 // Included resources associated with the primary data.
-	Extensions map[string]*json.RawMessage // Optional JSON:API extensions.
+	Jsonapi           JSONAPI                     // The JSON:API object.
+	Data              PrimaryData                 // The primary data.
+	Meta              Meta                        // Top-level metadata.
+	Links             Links                       // Top-level links.
+	Errors            []*Error                    // Server response errors.
+	Included          []*Resource                 // Included resources associated with the primary data.
+	Extensions        map[string]*json.RawMessage // Optional JSON:API extensions.
+	ValidateOnMarshal bool                        // Optional verification according to the JSON:API specification
 }
 
 // NewSingleDocument creates a new document with the provided resource as primary data.

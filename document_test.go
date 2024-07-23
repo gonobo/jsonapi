@@ -22,7 +22,7 @@ type testcase[T any] struct {
 
 func runMarshalJSONTest[T any](t *testing.T, tc testcase[T]) {
 	gotJSON, err := json.MarshalIndent(tc.in, "", "  ")
-	if tc.wantErr && assert.Error(t, err) {
+	if tc.wantErr && assert.Error(t, err, "got json: %s", string(gotJSON)) {
 		return
 	}
 	assert.NoError(t, err)
@@ -171,6 +171,15 @@ func TestDocumentMarshalJSON(t *testing.T) {
 	t.Run("empty document", func(t *testing.T) {
 		runMarshalJSONTest(t, tc{
 			in:            jsonapi.Document{},
+			wantErr:       false,
+			wantJSON:      `{"jsonapi": {"version": "1.1"}}`,
+			skipUnmarshal: true,
+		})
+	})
+
+	t.Run("empty document with specification validation", func(t *testing.T) {
+		runMarshalJSONTest(t, tc{
+			in:            jsonapi.Document{ValidateOnMarshal: true},
 			wantErr:       true,
 			skipUnmarshal: true,
 		})

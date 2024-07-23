@@ -18,6 +18,10 @@ const (
 )
 
 func ValidateSpec(doc *Document) error {
+	if !doc.ValidateOnMarshal {
+		return nil
+	}
+
 	var spec Specification = noSpec{}
 	switch SpecificationVersion(doc.Jsonapi.Version.Value()) {
 	case Version1_1:
@@ -35,7 +39,9 @@ func (noSpec) validate(d *Document) error {
 type spec1_1 struct{}
 
 func (s spec1_1) validate(d *Document) error {
-	err := errors.Join(
+	err := noSpec{}.validate(d)
+	err = errors.Join(
+		err,
 		s.checkMissingTopLevelMembers(d),
 	)
 	if err != nil {

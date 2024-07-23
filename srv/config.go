@@ -27,18 +27,16 @@ type Options func(*Config)
 
 type WriteOptions func(*Config)
 
-func (c Config) Apply(options ...Options) Config {
+func (c *Config) Apply(options ...Options) {
 	for _, apply := range options {
-		apply(&c)
+		apply(c)
 	}
-	return c
 }
 
-func (c Config) ApplyWriteOptions(options ...WriteOptions) Config {
+func (c *Config) ApplyWriteOptions(options ...WriteOptions) {
 	for _, apply := range options {
-		apply(&c)
+		apply(c)
 	}
-	return c
 }
 
 func (c Config) applyDocumentOptions(w http.ResponseWriter, doc *jsonapi.Document) error {

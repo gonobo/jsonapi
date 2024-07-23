@@ -71,7 +71,8 @@ type ResourceMux struct {
 //
 // This and other behaviors can be modified via configuration options.
 func New(options ...Options) ResourceMux {
-	cfg := DefaultConfig().Apply(options...)
+	cfg := DefaultConfig()
+	cfg.Apply(options...)
 	mux := ResourceMux{
 		Config:   cfg,
 		handlers: make(map[string]http.Handler),

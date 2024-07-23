@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/gonobo/jsonapi/query"
 )
 
-type Criteria struct {
-	PageNumber int
-	Cursor     string
-	Limit      int
-}
+type Criteria = query.Page
 
 type Params map[string]string
 

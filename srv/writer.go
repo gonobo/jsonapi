@@ -56,7 +56,8 @@ func (m MemoryWriter) Flush(w http.ResponseWriter) {
 // As with ResponseWriter.Write(), the caller should ensure no other calls are
 // made to w after Write() is called.
 func Write(w http.ResponseWriter, in any, options ...WriteOptions) {
-	cfg := DefaultConfig().ApplyWriteOptions(options...)
+	cfg := DefaultConfig()
+	cfg.ApplyWriteOptions(options...)
 
 	doc, err := cfg.jsonapiMarshal(in)
 

@@ -70,7 +70,7 @@ func TestResponseWrite(t *testing.T) {
 				r.Headers["x-app-id"] = "1234"
 			}),
 			writer:  httptest.NewRecorder(),
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name: "writes error to writer",

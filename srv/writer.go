@@ -66,6 +66,16 @@ func Write(w http.ResponseWriter, in any, options ...WriteOptions) {
 		return
 	}
 
+	// apply document options
+	err = cfg.applyDocumentOptions(w, &doc)
+
+	if err != nil {
+		errmsg := fmt.Sprintf("jsonapi: failed to apply document options: %s", err)
+		http.Error(w, errmsg, http.StatusInternalServerError)
+		return
+	}
+
+	// marshal document
 	data, err := cfg.jsonMarshal(doc)
 
 	if err != nil {

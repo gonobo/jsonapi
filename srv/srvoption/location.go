@@ -16,12 +16,13 @@ func WriteLocationHeader(baseURL string, resolver jsonapi.URLResolver) srv.Write
 }
 
 func writeLocationHeader(baseURL string, resolver jsonapi.URLResolver) srv.DocumentOptions {
-	return func(w http.ResponseWriter, r *http.Request, d *jsonapi.Document) {
+	return func(w http.ResponseWriter, d *jsonapi.Document) error {
 		data := d.Data.First()
 		location := resolver.ResolveURL(jsonapi.RequestContext{
 			ResourceType: data.Type,
 			ResourceID:   data.ID,
 		}, baseURL)
 		w.Header().Add(HeaderKeyLocation, location)
+		return nil
 	}
 }

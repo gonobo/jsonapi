@@ -18,52 +18,27 @@ var (
 	JSONUnmarshal func([]byte, any) error = json.Unmarshal
 )
 
-func ResolvesIncludedResources(resolver jsonapi.URLResolver) srv.Options {
-	return srv.UseMiddleware(resolveIncludedResources(resolver))
+func ResolveIncludes(r *http.Request, mux *srv.ResourceMux) srv.WriteOptions {
+	return srv.UseDocumentOptions(resolveIncludes(r, mux))
 }
 
-func resolveIncludedResources(resolver jsonapi.URLResolver) srv.Middleware {
-	return func(next http.Handler) http.Handler {
-		return resolveIncluded{next, resolver}
+func resolveIncludes(r *http.Request, mux *srv.ResourceMux) srv.DocumentOptions {
+	return func(w http.ResponseWriter, d *jsonapi.Document) error {
+		resolver := includeResolver{d, mux}
+		return resolver.Resolve(w, r)
 	}
 }
 
-type resolveIncluded struct {
-	http.Handler
-	jsonapi.URLResolver
+type includeResolver struct {
+	Document *jsonapi.Document
+	Mux      *srv.ResourceMux
 }
 
-func (rr resolveIncluded) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// allow downstream handler to resolve request, but store response instead of sending it
-	// to the stream.
-	mem := srv.MemoryWriter{}
-	rr.Handler.ServeHTTP(&mem, r)
-
-	if rr.skip(r, &mem) {
-		// nothing to do, skip request. send response and return
-		mem.Flush(w)
-		return
-	}
-
+func (ir includeResolver) Resolve(w http.ResponseWriter, r *http.Request) error {
 	include := strings.Split(r.URL.Query().Get(QueryParamInclude), ",")
 	if len(include) == 0 {
 		// nothing to do, included resources were not requested
-		mem.Flush(w)
-		return
-	}
-
-	// unmarshal the response; extract the resource item(s) from the document's primary data
-	doc := jsonapi.Document{}
-	err := JSONUnmarshal(mem.Body, &doc)
-	if err != nil {
-		srv.Error(w, fmt.Errorf("resolve included: failed to unmarshal body: %w", err), http.StatusInternalServerError)
-		return
-	}
-
-	if doc.Data == nil {
-		// nothing to do, no resources to include
-		mem.Flush(w)
-		return
+		return nil
 	}
 
 	// memoize included resources; some relationships might share the same resource -- no need
@@ -72,32 +47,18 @@ func (rr resolveIncluded) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mux := srv.GetResourceMux(r)
 
 	// iterate through each resource, fetching the related resource associated with the target relationship.
-	for _, item := range doc.Data.Items() {
+	for _, item := range ir.Document.Data.Items() {
 		for _, relationship := range include {
-			err := rr.fetchRelated(r, mux, relationship, item, memo)
+			err := ir.fetchRelated(r, mux, relationship, item, memo)
 			if err != nil {
-				srv.Error(w, fmt.Errorf("resolve included: failed to fetch related: %w", err), http.StatusInternalServerError)
-				return
+				return fmt.Errorf("resolve included: failed to fetch related: %w", err)
 			}
 		}
 	}
-
-	// add the collected resources to the included field of the document.
-	for _, item := range memo {
-		doc.Included = append(doc.Included, item)
-	}
-
-	mem.Body, err = json.Marshal(doc)
-	if err != nil {
-		srv.Error(w, fmt.Errorf("resolve included: failed to marshal body: %w", err), http.StatusInternalServerError)
-		return
-	}
-
-	// flush updated document to the response stream
-	mem.Flush(w)
+	return nil
 }
 
-func (rr resolveIncluded) fetchRelated(r *http.Request,
+func (ir includeResolver) fetchRelated(r *http.Request,
 	mux *srv.ResourceMux, relationship string, item *jsonapi.Resource, memo map[string]*jsonapi.Resource) error {
 	if item.Relationships == nil {
 		// nothing to include, return early
@@ -114,7 +75,7 @@ func (rr resolveIncluded) fetchRelated(r *http.Request,
 	}
 
 	// create the request context to be used in the fetch request
-	ctx := rr.createRequestContext(ref.Data)
+	ctx := ir.createRequestContext(ref.Data)
 	mem := srv.MemoryWriter{}
 
 	mux.ServeResourceHTTP(&mem, jsonapi.RequestWithContext(r, &ctx))
@@ -141,7 +102,7 @@ func (rr resolveIncluded) fetchRelated(r *http.Request,
 	return nil
 }
 
-func (resolveIncluded) createRequestContext(ref jsonapi.PrimaryData) jsonapi.RequestContext {
+func (includeResolver) createRequestContext(ref jsonapi.PrimaryData) jsonapi.RequestContext {
 	// collect the unique identifiers for all resources identified in the relationship
 	var resourceType string
 	ids := make([]string, 0)
@@ -159,10 +120,4 @@ func (resolveIncluded) createRequestContext(ref jsonapi.PrimaryData) jsonapi.Req
 		Related:      true,
 		FetchIDs:     ids,
 	}
-}
-
-func (resolveIncluded) skip(r *http.Request, mem *srv.MemoryWriter) bool {
-	return r.Method != http.MethodGet || // is not a fetch request
-		mem.Status != http.StatusOK || // is not a 200 return status
-		len(mem.Body) == 0 // has no a document payload
 }

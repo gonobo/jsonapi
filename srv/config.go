@@ -19,7 +19,7 @@ type jsonapiMarshalFunc = func(any) (jsonapi.Document, error)
 
 type jsonMarshalFunc = func(any) ([]byte, error)
 
-type DocumentOptions = func(http.ResponseWriter, *http.Request, *jsonapi.Document)
+type DocumentOptions = func(http.ResponseWriter, *jsonapi.Document) error
 
 type Middleware = func(next http.Handler) http.Handler
 
@@ -41,10 +41,13 @@ func (c Config) ApplyWriteOptions(options ...WriteOptions) Config {
 	return c
 }
 
-func (c Config) applyDocumentOptions(w http.ResponseWriter, r *http.Request, doc *jsonapi.Document) {
+func (c Config) applyDocumentOptions(w http.ResponseWriter, doc *jsonapi.Document) error {
 	for _, apply := range c.documentOptions {
-		apply(w, r, doc)
+		if err := apply(w, doc); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (c Config) applyMiddleware(handler http.Handler) http.Handler {

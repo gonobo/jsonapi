@@ -20,13 +20,14 @@ const LatestSupportedVersion = "1.1"
 // or collection of resources in response to a client request. Clients also
 // send documents to a server to create or modify existing resources.
 type Document struct {
-	Jsonapi    JSONAPI                     // The JSON:API object.
-	Data       PrimaryData                 // The primary data.
-	Meta       Meta                        // Top-level metadata.
-	Links      Links                       // Top-level links.
-	Errors     []*Error                    // Server response errors.
-	Included   []*Resource                 // Included resources associated with the primary data.
-	Extensions map[string]*json.RawMessage // Optional JSON:API extensions.
+	Jsonapi           JSONAPI                     // The JSON:API object.
+	Data              PrimaryData                 // The primary data.
+	Meta              Meta                        // Top-level metadata.
+	Links             Links                       // Top-level links.
+	Errors            []*Error                    // Server response errors.
+	Included          []*Resource                 // Included resources associated with the primary data.
+	Extensions        map[string]*json.RawMessage // Optional JSON:API extensions.
+	ValidateOnMarshal bool                        // Optional verification according to the JSON:API specification
 }
 
 // NewSingleDocument creates a new document with the provided resource as primary data.
@@ -72,6 +73,10 @@ func (d Document) Error() error {
 
 // MarshalJSON serializes the document as JSON.
 func (d Document) MarshalJSON() ([]byte, error) {
+	if err := ValidateSpec(&d); err != nil {
+		return nil, fmt.Errorf("marshal: document failed spec: %w", err)
+	}
+
 	type out struct {
 		Jsonapi  JSONAPI     `json:"jsonapi,omitempty"`
 		Data     PrimaryData `json:"data,omitempty"`
@@ -87,6 +92,7 @@ func (d Document) MarshalJSON() ([]byte, error) {
 			Data:     d.Data,
 			Meta:     d.Meta,
 			Errors:   d.Errors,
+			Links:    d.Links,
 			Included: d.Included,
 		},
 		ext: d.Extensions,
@@ -189,13 +195,19 @@ func (d *Document) Sort(cmp Comparator, criterion []query.Sort) {
 // Version contains information regarding the JSON:API version supported by the server.
 type Version string
 
-// MarshalJSON serializes the version into JSON.
-func (v Version) MarshalJSON() ([]byte, error) {
+// Value returns the associated version, or the last version supported by this library if
+// zero-value.
+func (v Version) Value() string {
 	version := string(v)
 	if version == "" {
 		version = LatestSupportedVersion
 	}
-	return json.Marshal(version)
+	return version
+}
+
+// MarshalJSON serializes the version into JSON.
+func (v Version) MarshalJSON() ([]byte, error) {
+	return json.Marshal(v.Value())
 }
 
 // JSONAPI includes information about the server's implementation.

@@ -18,7 +18,7 @@ const (
 )
 
 func ValidateSpec(doc *Document) error {
-	var spec Specification = no_spec{}
+	var spec Specification = noSpec{}
 	switch SpecificationVersion(doc.Jsonapi.Version.Value()) {
 	case Version1_1:
 		spec = spec1_1{}
@@ -26,9 +26,9 @@ func ValidateSpec(doc *Document) error {
 	return spec.validate(doc)
 }
 
-type no_spec struct{}
+type noSpec struct{}
 
-func (no_spec) validate(d *Document) error {
+func (noSpec) validate(d *Document) error {
 	return nil
 }
 

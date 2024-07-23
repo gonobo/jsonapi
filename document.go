@@ -160,6 +160,33 @@ type Comparator interface {
 	Compare(i, j int, attribute string) int
 }
 
+// ComparatorFunc functions implement Comparator.
+type ComparatorFunc func(i, j int, attribute string) int
+
+// Compare compares items indexed at i and j, returning negative if less,
+// positive if greater, or zero if equal.
+func (f ComparatorFunc) Compare(i, j int, attribute string) int {
+	return f(i, j, attribute)
+}
+
+// Comparer determines the order of two items.
+type Comparer[T any] func(a, b T) int
+
+// ResourceComparator returns a Comparator that compares two resources a and b
+// based on an attribute specified by the key index of map m.
+func ResourceComparator[S ~[]T, T any](arr S, m map[string]Comparer[T]) Comparator {
+	return ComparatorFunc(func(i, j int, attribute string) int {
+		compare, ok := m[attribute]
+		if !ok {
+			// attribute cannot be compared, assume a is less than b
+			// in this regard.
+			return -1
+		}
+		a, b := arr[i], arr[j]
+		return compare(a, b)
+	})
+}
+
 // Sort sorts the document's primary data by comparing the resources
 // against the provided sort criterion.
 func (d *Document) Sort(cmp Comparator, criterion []query.Sort) {

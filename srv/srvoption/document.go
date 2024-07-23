@@ -29,11 +29,11 @@ func Link(key string, href string) srv.WriteOptions {
 			if d.Links == nil {
 				d.Links = jsonapi.Links{}
 			}
-			_, err := url.Parse(href)
+			uri, err := url.ParseRequestURI(href)
 			if err != nil {
 				return fmt.Errorf("add link: failed to parse href: %s: %w", href, err)
 			}
-			d.Links[key] = &jsonapi.Link{Href: href}
+			d.Links[key] = &jsonapi.Link{Href: uri.String()}
 			return nil
 		})
 }
@@ -71,6 +71,10 @@ func VisitDocument(visitor jsonapi.PartialVisitor) srv.WriteOptions {
 // ResourceLinks applies the "self" and "related" links to all resources and resource relationships
 // embedded in the response document.
 func ResourceLinks(baseURL string, resolver jsonapi.URLResolver) srv.WriteOptions {
+	const keyParentType = "$__parenttype"
+	const keyParentID = "$__parentid"
+	const keyRelName = "$__relname"
+
 	visitor := jsonapi.PartialVisitor{
 		Resource: func(r *jsonapi.Resource) error {
 			self := resolver.ResolveURL(jsonapi.RequestContext{
@@ -89,17 +93,17 @@ func ResourceLinks(baseURL string, resolver jsonapi.URLResolver) srv.WriteOption
 					rel.Meta = jsonapi.Meta{}
 				}
 
-				rel.Meta["$parent_type"] = r.Type
-				rel.Meta["$parent_id"] = r.ID
-				rel.Meta["$rel_name"] = name
+				rel.Meta[keyParentType] = r.Type
+				rel.Meta[keyParentID] = r.ID
+				rel.Meta[keyRelName] = name
 			}
 
 			return nil
 		},
 		Relationship: func(r *jsonapi.Relationship) error {
-			resourceType := r.Meta["$parent_type"].(string)
-			resourceID := r.Meta["$parent_id"].(string)
-			relationship := r.Meta["rel_name"].(string)
+			resourceType := r.Meta[keyParentType].(string)
+			resourceID := r.Meta[keyParentID].(string)
+			relationship := r.Meta[keyRelName].(string)
 
 			self := resolver.ResolveURL(jsonapi.RequestContext{
 				ResourceType: resourceType,
@@ -121,9 +125,9 @@ func ResourceLinks(baseURL string, resolver jsonapi.URLResolver) srv.WriteOption
 			r.Links["self"] = &jsonapi.Link{Href: self}
 			r.Links["related"] = &jsonapi.Link{Href: related}
 
-			delete(r.Meta, "$parent_type")
-			delete(r.Meta, "$parent_id")
-			delete(r.Meta, "$rel_name")
+			delete(r.Meta, keyParentType)
+			delete(r.Meta, keyParentID)
+			delete(r.Meta, keyRelName)
 
 			return nil
 		},

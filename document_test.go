@@ -515,6 +515,41 @@ func TestDocumentSort(t *testing.T) {
 			doc.Sort(comparator(func(i1, i2 int, s string) int { return 0 }), nil)
 		})
 	})
+
+	t.Run("multiple items with resource comparer", func(t *testing.T) {
+		items := []*jsonapi.Resource{
+			{ID: "1", Attributes: map[string]any{"foo": "1", "bar": "3"}},
+			{ID: "2", Attributes: map[string]any{"foo": "1", "bar": "2"}},
+			{ID: "3", Attributes: map[string]any{"foo": "3", "bar": "1"}},
+		}
+
+		criterion := []query.Sort{
+			{Property: "foo", Descending: true},
+			{Property: "bar"},
+			{Property: "baz", Descending: true},
+		}
+
+		doc := jsonapi.Document{Data: jsonapi.Many{Value: items}}
+
+		comparer := jsonapi.ResourceComparator(items, map[string]jsonapi.Comparer[*jsonapi.Resource]{
+			"foo": func(a, b *jsonapi.Resource) int {
+				return strings.Compare(a.Attributes["foo"].(string), b.Attributes["foo"].(string))
+			},
+			"bar": func(a, b *jsonapi.Resource) int {
+				return strings.Compare(a.Attributes["bar"].(string), b.Attributes["bar"].(string))
+			},
+		})
+
+		doc.Sort(comparer, criterion)
+
+		assert.Equal(t, "3", items[0].ID)
+		assert.Equal(t, "2", items[1].ID)
+		assert.Equal(t, "1", items[2].ID)
+
+		t.Run("returns with no criteria", func(t *testing.T) {
+			doc.Sort(comparator(func(i1, i2 int, s string) int { return 0 }), nil)
+		})
+	})
 }
 
 func TestParse(t *testing.T) {

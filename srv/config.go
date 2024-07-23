@@ -1,7 +1,6 @@
 package srv
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -20,7 +19,7 @@ type jsonapiMarshalFunc = func(any) (jsonapi.Document, error)
 
 type jsonMarshalFunc = func(any) ([]byte, error)
 
-type DocumentOptions = func(context.Context, *jsonapi.Document)
+type DocumentOptions = func(http.ResponseWriter, *http.Request, *jsonapi.Document)
 
 type Middleware = func(next http.Handler) http.Handler
 
@@ -42,9 +41,9 @@ func (c Config) ApplyWriteOptions(options ...WriteOptions) Config {
 	return c
 }
 
-func (c Config) applyDocumentOptions(ctx context.Context, doc *jsonapi.Document) {
+func (c Config) applyDocumentOptions(w http.ResponseWriter, r *http.Request, doc *jsonapi.Document) {
 	for _, apply := range c.documentOptions {
-		apply(ctx, doc)
+		apply(w, r, doc)
 	}
 }
 
@@ -73,5 +72,11 @@ func ResolvesContext(resolver jsonapi.RequestContextResolver) Options {
 func UseMiddleware(middleware Middleware) Options {
 	return func(c *Config) {
 		c.middlewares = append(c.middlewares, middleware)
+	}
+}
+
+func UseDocumentOptions(options DocumentOptions) WriteOptions {
+	return func(c *Config) {
+		c.documentOptions = append(c.documentOptions, options)
 	}
 }

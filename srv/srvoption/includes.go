@@ -1,4 +1,4 @@
-package middleware
+package srvoption
 
 import (
 	"encoding/json"
@@ -36,19 +36,19 @@ type resolveIncluded struct {
 func (rr resolveIncluded) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// allow downstream handler to resolve request, but store response instead of sending it
 	// to the stream.
-	mem := srv.MemoryWriter{ResponseWriter: w}
+	mem := srv.MemoryWriter{}
 	rr.Handler.ServeHTTP(&mem, r)
 
 	if rr.skip(r, &mem) {
 		// nothing to do, skip request. send response and return
-		mem.Flush()
+		mem.Flush(w)
 		return
 	}
 
 	include := strings.Split(r.URL.Query().Get(QueryParamInclude), ",")
 	if len(include) == 0 {
 		// nothing to do, included resources were not requested
-		mem.Flush()
+		mem.Flush(w)
 		return
 	}
 
@@ -62,7 +62,7 @@ func (rr resolveIncluded) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if doc.Data == nil {
 		// nothing to do, no resources to include
-		mem.Flush()
+		mem.Flush(w)
 		return
 	}
 
@@ -74,7 +74,7 @@ func (rr resolveIncluded) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// iterate through each resource, fetching the related resource associated with the target relationship.
 	for _, item := range doc.Data.Items() {
 		for _, relationship := range include {
-			err := rr.fetchRelated(w, r, mux, relationship, item, memo)
+			err := rr.fetchRelated(r, mux, relationship, item, memo)
 			if err != nil {
 				srv.Error(w, fmt.Errorf("resolve included: failed to fetch related: %w", err), http.StatusInternalServerError)
 				return
@@ -94,10 +94,10 @@ func (rr resolveIncluded) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// flush updated document to the response stream
-	mem.Flush()
+	mem.Flush(w)
 }
 
-func (rr resolveIncluded) fetchRelated(w http.ResponseWriter, r *http.Request,
+func (rr resolveIncluded) fetchRelated(r *http.Request,
 	mux *srv.ResourceMux, relationship string, item *jsonapi.Resource, memo map[string]*jsonapi.Resource) error {
 	if item.Relationships == nil {
 		// nothing to include, return early
@@ -115,7 +115,7 @@ func (rr resolveIncluded) fetchRelated(w http.ResponseWriter, r *http.Request,
 
 	// create the request context to be used in the fetch request
 	ctx := rr.createRequestContext(ref.Data)
-	mem := srv.MemoryWriter{ResponseWriter: w}
+	mem := srv.MemoryWriter{}
 
 	mux.ServeResourceHTTP(&mem, jsonapi.RequestWithContext(r, &ctx))
 

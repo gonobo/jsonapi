@@ -12,9 +12,9 @@ import (
 // WriteHeader() and Write() into an internal buffer. To send data
 // to the underlying response writer, call mw.Flush().
 type MemoryWriter struct {
-	http.ResponseWriter        // The underlying response writer.
-	Status              int    // The return status code.
-	Body                []byte // The return payload.
+	Status    int         // The return status code.
+	Body      []byte      // The return payload.
+	HeaderMap http.Header // The return headers
 }
 
 // Write stores the content of p into an internal buffer.
@@ -23,18 +23,28 @@ func (m *MemoryWriter) Write(p []byte) (int, error) {
 	return copy(m.Body, p), nil
 }
 
+func (m *MemoryWriter) Header() http.Header {
+	if m.HeaderMap == nil {
+		m.HeaderMap = make(http.Header)
+	}
+	return m.HeaderMap
+}
+
 // WriteHeader stores the status value in memory.
 func (m *MemoryWriter) WriteHeader(status int) {
 	m.Status = status
 }
 
 // Flush sends the status code and body buffer to the underlying writer.
-func (m MemoryWriter) Flush() {
+func (m MemoryWriter) Flush(w http.ResponseWriter) {
+	for k, v := range m.Header() {
+		w.Header()[k] = v
+	}
 	if m.Status != 0 {
-		m.ResponseWriter.WriteHeader(m.Status)
+		w.WriteHeader(m.Status)
 	}
 	if len(m.Body) > 0 {
-		swallowWriteResult(m.ResponseWriter.Write(m.Body))
+		swallowWriteResult(w.Write(m.Body))
 	}
 }
 

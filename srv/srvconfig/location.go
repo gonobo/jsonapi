@@ -1,4 +1,4 @@
-package srvoption
+package srvconfig
 
 import (
 	"net/http"

@@ -428,14 +428,14 @@ type PrimaryData interface {
 	First() *Resource
 }
 
-// First is deprecated and will be removed in the next major release. Use the First()
-// method on the PrimaryData interface instead.
-//
 // First returns the first item in a primary data node -- the node itself for single or "one"
 // primary data, or the first element in multi or "many" primary data.
 //
 // If the data node is set to "null" (a jsonapi.One instance with a nil value) then nil is returned.
 // If the data node itself is nil, First() panics.
+//
+// Deprecated: First is deprecated and will be removed in the next major release. Use the First()
+// method on the PrimaryData interface instead.
 func First(data PrimaryData) *Resource {
 	log.Println("The First() function is deprecated and will be removed in the next major release. Use the PrimaryData.First() method instead.")
 	items := data.Items()

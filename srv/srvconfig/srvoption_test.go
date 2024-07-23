@@ -1,4 +1,4 @@
-package srvoption_test
+package srvconfig_test
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/gonobo/jsonapi"
 	"github.com/gonobo/jsonapi/srv"
-	"github.com/gonobo/jsonapi/srv/srvoption"
+	"github.com/gonobo/jsonapi/srv/srvconfig"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,7 +54,7 @@ func TestMeta(t *testing.T) {
 		{
 			name: "adds a meta string value",
 			options: []srv.WriteOptions{
-				srvoption.Meta("mystring", "string_value"),
+				srvconfig.Meta("mystring", "string_value"),
 			},
 			wantDocument: jsonapi.Document{
 				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
@@ -71,7 +71,7 @@ func TestLink(t *testing.T) {
 		{
 			name: "adds a link",
 			options: []srv.WriteOptions{
-				srvoption.Link("test", "http://www.example.com/things/1"),
+				srvconfig.Link("test", "http://www.example.com/things/1"),
 			},
 			wantDocument: jsonapi.Document{
 				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
@@ -83,7 +83,7 @@ func TestLink(t *testing.T) {
 		{
 			name: "fails with invalid link",
 			options: []srv.WriteOptions{
-				srvoption.Link("test", "this is not a url"),
+				srvconfig.Link("test", "this is not a url"),
 			},
 			wantStatusErr: http.StatusInternalServerError,
 		},
@@ -97,7 +97,7 @@ func TestSelfLink(t *testing.T) {
 		{
 			name: "adds a self link",
 			options: []srv.WriteOptions{
-				srvoption.SelfLink(httptest.NewRequest("GET", "http://www.example.com/things/1", nil)),
+				srvconfig.SelfLink(httptest.NewRequest("GET", "http://www.example.com/things/1", nil)),
 			},
 			wantDocument: jsonapi.Document{
 				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
@@ -127,7 +127,7 @@ func TestNextPageCursorLink(t *testing.T) {
 		{
 			name: "adds a next page link",
 			options: []srv.WriteOptions{
-				srvoption.NextPageCursorLink(
+				srvconfig.NextPageCursorLink(
 					httptest.NewRequest("GET", "http://www.example.com/things/1", nil),
 					"page-cursor",
 					100,
@@ -152,7 +152,7 @@ func TestResourceLinks(t *testing.T) {
 		{
 			name: "adds a next page link",
 			options: []srv.WriteOptions{
-				srvoption.ResourceLinks("http://www.example.com/api", jsonapi.DefaultURLResolver()),
+				srvconfig.ResourceLinks("http://www.example.com/api", jsonapi.DefaultURLResolver()),
 			},
 			doc: *jsonapi.NewSingleDocument(&jsonapi.Resource{
 				Type: "things",

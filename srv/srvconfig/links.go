@@ -1,4 +1,4 @@
-package srvoption
+package srvconfig
 
 import (
 	"fmt"
@@ -9,18 +9,6 @@ import (
 	"github.com/gonobo/jsonapi"
 	"github.com/gonobo/jsonapi/srv"
 )
-
-// Meta adds a key/value pair to the response document's meta attribute.
-func Meta(key string, value any) srv.WriteOptions {
-	return srv.UseDocumentOptions(
-		func(w http.ResponseWriter, d *jsonapi.Document) error {
-			if d.Meta == nil {
-				d.Meta = jsonapi.Meta{}
-			}
-			d.Meta[key] = value
-			return nil
-		})
-}
 
 // Link adds a URL to the response document's links attribute.
 func Link(key string, href string) srv.WriteOptions {
@@ -44,8 +32,7 @@ func SelfLink(r *http.Request) srv.WriteOptions {
 	return Link("self", href)
 }
 
-// NextPageCursorLink adds the next pagination URL to the response document's links attribute.
-func NextPageCursorLink(r *http.Request, cursor string, limit int) srv.WriteOptions {
+func pageCursorLink(r *http.Request, name string, cursor string, limit int) srv.WriteOptions {
 	requestURL := *r.URL
 	query := requestURL.Query()
 	query.Del("page[cursor]")
@@ -57,15 +44,27 @@ func NextPageCursorLink(r *http.Request, cursor string, limit int) srv.WriteOpti
 	}
 
 	requestURL.RawQuery = query.Encode()
-	return Link("next", requestURL.String())
+	return Link(name, requestURL.String())
 }
 
-// VisitDocument applies the visitor to the response document. Visitors can traverse and modify
-// a document's nodes.
-func VisitDocument(visitor jsonapi.PartialVisitor) srv.WriteOptions {
-	return srv.UseDocumentOptions(func(w http.ResponseWriter, d *jsonapi.Document) error {
-		return d.ApplyVisitor(visitor.Visitor())
-	})
+// NextPageCursorLink adds the next pagination URL to the response document's links attribute.
+func NextPageCursorLink(r *http.Request, cursor string, limit int) srv.WriteOptions {
+	return pageCursorLink(r, "next", cursor, limit)
+}
+
+// PrevPageCursorLink adds the next pagination URL to the response document's links attribute.
+func PrevPageCursorLink(r *http.Request, cursor string, limit int) srv.WriteOptions {
+	return pageCursorLink(r, "prev", cursor, limit)
+}
+
+// FirstPageCursorLink adds the next pagination URL to the response document's links attribute.
+func FirstPageCursorLink(r *http.Request, cursor string, limit int) srv.WriteOptions {
+	return pageCursorLink(r, "first", cursor, limit)
+}
+
+// PrevPageCursorLink adds the next pagination URL to the response document's links attribute.
+func LastPageCursorLink(r *http.Request, cursor string, limit int) srv.WriteOptions {
+	return pageCursorLink(r, "last", cursor, limit)
 }
 
 // ResourceLinks applies the "self" and "related" links to all resources and resource relationships

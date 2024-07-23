@@ -1,4 +1,4 @@
-package srvoption
+package srvconfig
 
 import (
 	"fmt"
@@ -15,7 +15,10 @@ type FilterQueryParser interface {
 	ParseFilterQuery(*http.Request) (query.FilterExpression, error)
 }
 
-func ResolvesFilterParams(parser FilterQueryParser) srv.Options {
+// ParsesFilterParams is a middleware that parses and extracts any filter parameters in the
+// request query and generates a filter expression stored within
+// the JSON:API request context.
+func ParsesFilterParams(parser FilterQueryParser) srv.Options {
 	return srv.UseMiddleware(resolveFilterParams(parser))
 }
 

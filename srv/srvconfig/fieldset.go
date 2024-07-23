@@ -1,4 +1,4 @@
-package srvoption
+package srvconfig
 
 import (
 	"fmt"
@@ -14,8 +14,9 @@ type FieldsetQueryParser interface {
 	ParseFieldsetQuery(*http.Request) ([]query.Fieldset, error)
 }
 
-// ResolveFieldsetParams resolves the fieldset parameters from the request.
-func ResolvesFieldsetParams(parser FieldsetQueryParser) srv.Options {
+// ParsesFieldsetParams is a middleware that resolves the fieldset parameters from the request
+// and stores them within the JSON:API request context.
+func ParsesFieldsetParams(parser FieldsetQueryParser) srv.Options {
 	return srv.UseMiddleware(resolveFieldsetParams(parser))
 }
 

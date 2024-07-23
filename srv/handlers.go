@@ -1,11 +1,18 @@
 package srv
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gonobo/jsonapi"
+)
+
+type ctxkey string
+
+const (
+	ctxKeyResourceMux ctxkey = "resourceMuxCtxKey"
 )
 
 var (
@@ -29,7 +36,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.handler.ServeHTTP(w, r.WithContext(jsonapi.SetContext(r.Context(), &ctx)))
+	h.handler.ServeHTTP(w, jsonapi.RequestWithContext(r, &ctx))
 }
 
 // Handle returns a JSON:API handler, which wraps the provided http handler. The provided
@@ -72,6 +79,20 @@ func New(options ...Options) ResourceMux {
 	return mux
 }
 
+// GetResourceMux returns the root resource mux stored within the request context.
+// If the mux is not found, GetResourceMux() panics.
+func GetResourceMux(r *http.Request) *ResourceMux {
+	value := r.Context().Value(ctxKeyResourceMux)
+	mux := value.(*ResourceMux)
+	return mux
+}
+
+// SetResourceMux sets the provided resource mux to the request context.
+func SetResourceMux(r *http.Request, m *ResourceMux) *http.Request {
+	ctx := context.WithValue(r.Context(), ctxKeyResourceMux, m)
+	return r.WithContext(ctx)
+}
+
 // HandleResource adds a request handler to the mux. All requests associated with the provided resource type will be
 // served by the provided handler.
 func (m *ResourceMux) HandleResource(resource string, handler http.Handler) {
@@ -82,7 +103,7 @@ func (m *ResourceMux) HandleResource(resource string, handler http.Handler) {
 func (m ResourceMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var handler http.Handler = http.HandlerFunc(m.ServeResourceHTTP)
 	handler = m.applyMiddleware(handler)
-	Handle(m.contextResolver, handler).ServeHTTP(w, r)
+	Handle(m.contextResolver, handler).ServeHTTP(w, SetResourceMux(r, &m))
 }
 
 // ServeResourceHTTP uses the embedded JSON:API request context to forward requests

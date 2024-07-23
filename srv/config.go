@@ -22,7 +22,7 @@ type jsonMarshalFunc = func(any) ([]byte, error)
 
 type DocumentOptions = func(context.Context, *jsonapi.Document)
 
-type Middleware = func(http.Handler) http.Handler
+type Middleware = func(next http.Handler) http.Handler
 
 type Options func(*Config)
 

@@ -22,7 +22,7 @@ type testcase[T any] struct {
 
 func runMarshalJSONTest[T any](t *testing.T, tc testcase[T]) {
 	gotJSON, err := json.MarshalIndent(tc.in, "", "  ")
-	if tc.wantErr && assert.Error(t, err) {
+	if tc.wantErr && assert.Error(t, err, "got json: %s", string(gotJSON)) {
 		return
 	}
 	assert.NoError(t, err)
@@ -171,7 +171,16 @@ func TestDocumentMarshalJSON(t *testing.T) {
 	t.Run("empty document", func(t *testing.T) {
 		runMarshalJSONTest(t, tc{
 			in:            jsonapi.Document{},
+			wantErr:       false,
 			wantJSON:      `{"jsonapi": {"version": "1.1"}}`,
+			skipUnmarshal: true,
+		})
+	})
+
+	t.Run("empty document with specification validation", func(t *testing.T) {
+		runMarshalJSONTest(t, tc{
+			in:            jsonapi.Document{ValidateOnMarshal: true},
+			wantErr:       true,
 			skipUnmarshal: true,
 		})
 	})
@@ -193,12 +202,14 @@ func TestDocumentMarshalJSON(t *testing.T) {
 		runMarshalJSONTest(t, tc{
 			in: jsonapi.Document{
 				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
+				Meta:    jsonapi.Meta{"test": true},
 				Extensions: map[string]*json.RawMessage{
 					"foo:version": MarshalRaw(t, "2"),
 				},
 			},
 			wantJSON: `{
 				"jsonapi": {"version": "1.1"},
+				"meta": {"test": true},
 				"foo:version": "2"
 			}`,
 		})
@@ -379,6 +390,25 @@ func TestDocumentMarshalJSON(t *testing.T) {
 					"title": "Unknown Error",
 					"detail": "An unknown error occurred."
 				}]
+			}`,
+		})
+	})
+
+	t.Run("document with top links", func(t *testing.T) {
+		runMarshalJSONTest(t, tc{
+			in: jsonapi.Document{
+				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
+				Links: jsonapi.Links{
+					"test": &jsonapi.Link{Href: "https://www.example.com/foo/1"},
+				},
+				Meta: jsonapi.Meta{"test": true},
+			},
+			wantJSON: `{
+				"jsonapi": {"version": "1.1"},
+				"meta": {"test": true},
+				"links": {
+					"test": "https://www.example.com/foo/1"
+				}
 			}`,
 		})
 	})

@@ -19,7 +19,7 @@ type FilterQueryParser interface {
 // request query and generates a filter expression stored within
 // the JSON:API request context.
 func WithFilterQueryParser(parser FilterQueryParser) srv.Options {
-	return srv.UseMiddleware(resolveFilterParams(parser))
+	return srv.WithMiddleware(resolveFilterParams(parser))
 }
 
 func resolveFilterParams(parser FilterQueryParser) srv.Middleware {

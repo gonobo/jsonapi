@@ -12,10 +12,10 @@ const (
 	HeaderKeyLocation = "Location"
 )
 
-// UseSortParams orders resources in the response document according to the specified
+// WithSortedResources orders resources in the response document according to the specified
 // sort criterion.
-func UseSortParams(cmp jsonapi.Comparator, criterion []query.Sort) srv.WriteOptions {
-	return srv.UseDocumentOptions(
+func WithSortedResources(cmp jsonapi.Comparator, criterion []query.Sort) srv.WriteOptions {
+	return srv.WithDocumentOptions(
 		func(w http.ResponseWriter, d *jsonapi.Document) error {
 			d.Sort(cmp, criterion)
 			return nil
@@ -25,7 +25,7 @@ func UseSortParams(cmp jsonapi.Comparator, criterion []query.Sort) srv.WriteOpti
 
 // WithMetaValue adds a key/value pair to the response document's meta attribute.
 func WithMetaValue(key string, value any) srv.WriteOptions {
-	return srv.UseDocumentOptions(
+	return srv.WithDocumentOptions(
 		func(w http.ResponseWriter, d *jsonapi.Document) error {
 			if d.Meta == nil {
 				d.Meta = jsonapi.Meta{}
@@ -38,7 +38,7 @@ func WithMetaValue(key string, value any) srv.WriteOptions {
 // UseDocumentVisitor applies the visitor to the response document. Visitors can traverse and modify
 // a document's nodes.
 func UseDocumentVisitor(visitor jsonapi.PartialVisitor) srv.WriteOptions {
-	return srv.UseDocumentOptions(func(w http.ResponseWriter, d *jsonapi.Document) error {
+	return srv.WithDocumentOptions(func(w http.ResponseWriter, d *jsonapi.Document) error {
 		return d.ApplyVisitor(visitor.Visitor())
 	})
 }
@@ -46,7 +46,7 @@ func UseDocumentVisitor(visitor jsonapi.PartialVisitor) srv.WriteOptions {
 // WithLocationHeader adds the "Location" http header to the response. The resulting
 // URL is based on the primary data resource's type and id.
 func WithLocationHeader(baseURL string, resolver jsonapi.URLResolver) srv.WriteOptions {
-	return srv.UseDocumentOptions(writeLocationHeader(baseURL, resolver))
+	return srv.WithDocumentOptions(writeLocationHeader(baseURL, resolver))
 }
 
 func writeLocationHeader(baseURL string, resolver jsonapi.URLResolver) srv.DocumentOptions {

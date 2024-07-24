@@ -1,186 +1,70 @@
 package option_test
 
 import (
-	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/gonobo/jsonapi"
+	"github.com/gonobo/jsonapi/query"
+	"github.com/gonobo/jsonapi/query/pagination"
 	"github.com/gonobo/jsonapi/srv"
 	"github.com/gonobo/jsonapi/srv/option"
 	"github.com/stretchr/testify/assert"
 )
 
-type writeOptionTestCase struct {
-	name          string
-	options       []srv.WriteOptions
-	doc           jsonapi.Document
-	wantDocument  jsonapi.Document
-	wantJSON      string
-	wantStatusErr int
+type optionTestCase struct {
+	name       string
+	options    []srv.Options
+	req        *http.Request
+	muxconfig  func(*testing.T, *srv.ResourceMux)
+	wantStatus int
+	wantBody   string
 }
 
-func (tc writeOptionTestCase) Run(t *testing.T) {
+func (tc optionTestCase) run(t *testing.T) {
 	t.Run(tc.name, func(t *testing.T) {
-		recorder := httptest.NewRecorder()
-		srv.Write(recorder, &tc.doc, tc.options...)
-		if tc.wantStatusErr > 0 {
-			assert.Equal(t, tc.wantStatusErr, recorder.Result().StatusCode)
-			return
+		mux := srv.New(tc.options...)
+		tc.muxconfig(t, &mux)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, tc.req)
+
+		gotStatus := w.Result().StatusCode
+		assert.Equal(t, tc.wantStatus, gotStatus)
+
+		if tc.wantBody != "" {
+			data, err := io.ReadAll(w.Result().Body)
+			assert.NoError(t, err, "unexpected error during payload decoding")
+			got := string(data)
+			assert.JSONEq(t, tc.wantBody, got, "got body: %s", got)
 		}
-		got := jsonapi.Document{}
-		err := json.NewDecoder(recorder.Result().Body).Decode(&got)
-		if err != nil {
-			t.Errorf("unexpected error: %s", err)
-			return
-		}
-		if tc.wantJSON != "" {
-			data, err := json.Marshal(got)
-			if err != nil {
-				t.Errorf("unexpected error: %s", err)
-				return
-			}
-			assert.JSONEq(t, tc.wantJSON, string(data), "got json: %s", string(data))
-			return
-		}
-		assert.EqualValues(t, tc.wantDocument, got)
 	})
 }
 
-func TestMeta(t *testing.T) {
-	for _, tc := range []writeOptionTestCase{
+func TestPageQueryParser(t *testing.T) {
+	for _, tc := range []optionTestCase{
 		{
-			name: "adds a meta string value",
-			options: []srv.WriteOptions{
-				option.WithMetaValue("mystring", "string_value"),
+			name: "parses page query params",
+			options: []srv.Options{
+				option.WithPaginationQueryParser(pagination.CursorNavigationParser{}),
 			},
-			wantDocument: jsonapi.Document{
-				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
-				Meta:    jsonapi.Meta{"mystring": "string_value"},
+			muxconfig: func(t *testing.T, rm *srv.ResourceMux) {
+				rm.HandleResource("things", http.HandlerFunc(
+					func(w http.ResponseWriter, r *http.Request) {
+						ctx, _ := jsonapi.GetContext(r.Context())
+						assert.EqualValues(t, ctx.Pagination, query.Page{
+							Cursor: "abc",
+							Limit:  100,
+						})
+						w.WriteHeader(http.StatusOK)
+						srv.Write(w, jsonapi.NewMultiDocument())
+					}))
 			},
+			req:        httptest.NewRequest("GET", "https://example.com/things?page[cursor]=abc&page[limit]=100", nil),
+			wantStatus: http.StatusOK,
 		},
 	} {
-		tc.Run(t)
-	}
-}
-
-func TestLink(t *testing.T) {
-	for _, tc := range []writeOptionTestCase{
-		{
-			name: "adds a link",
-			options: []srv.WriteOptions{
-				option.WithLink("test", "http://www.example.com/things/1"),
-			},
-			wantDocument: jsonapi.Document{
-				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
-				Links: jsonapi.Links{
-					"test": &jsonapi.Link{Href: "http://www.example.com/things/1"},
-				},
-			},
-		},
-		{
-			name: "fails with invalid link",
-			options: []srv.WriteOptions{
-				option.WithLink("test", "this is not a url"),
-			},
-			wantStatusErr: http.StatusInternalServerError,
-		},
-	} {
-		tc.Run(t)
-	}
-}
-
-func TestSelfLink(t *testing.T) {
-	for _, tc := range []writeOptionTestCase{
-		{
-			name: "adds a self link",
-			options: []srv.WriteOptions{
-				option.WithSelfLink(httptest.NewRequest("GET", "http://www.example.com/things/1", nil)),
-			},
-			wantDocument: jsonapi.Document{
-				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
-				Links: jsonapi.Links{
-					"self": &jsonapi.Link{Href: "http://www.example.com/things/1"},
-				},
-			},
-		},
-	} {
-		tc.Run(t)
-	}
-}
-
-type decodedURL string
-
-func (d decodedURL) String() string {
-	value, err := url.ParseRequestURI(string(d))
-	if err != nil {
-		panic(err)
-	}
-	value.RawQuery = value.Query().Encode()
-	return value.String()
-}
-
-func TestNextPageCursorLink(t *testing.T) {
-	for _, tc := range []writeOptionTestCase{
-		{
-			name: "adds a next page link",
-			options: []srv.WriteOptions{
-				option.WithNextPageCursorLink(
-					httptest.NewRequest("GET", "http://www.example.com/things/1", nil),
-					"page-cursor",
-					100,
-				),
-			},
-			wantDocument: jsonapi.Document{
-				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
-				Links: jsonapi.Links{
-					"next": &jsonapi.Link{
-						Href: decodedURL("http://www.example.com/things/1?page[cursor]=page-cursor&page[limit]=100").String(),
-					},
-				},
-			},
-		},
-	} {
-		tc.Run(t)
-	}
-}
-
-func TestResourceLinks(t *testing.T) {
-	for _, tc := range []writeOptionTestCase{
-		{
-			name: "adds a next page link",
-			options: []srv.WriteOptions{
-				option.WithResourceLinks("http://www.example.com/api", jsonapi.DefaultURLResolver()),
-			},
-			doc: *jsonapi.NewSingleDocument(&jsonapi.Resource{
-				Type: "things",
-				ID:   "1",
-				Relationships: jsonapi.RelationshipsNode{
-					"parent": &jsonapi.Relationship{},
-				},
-			}),
-			wantJSON: `{
-				"jsonapi": {"version": "1.1"},
-				"data": {
-					"type": "things",
-					"id": "1",
-					"links": {
-						"self": "http://www.example.com/api/things/1"
-					},
-					"relationships": {
-						"parent": {
-							"links": {
-								"related": "http://www.example.com/api/things/1/parent",
-								"self": "http://www.example.com/api/things/1/relationships/parent"
-							}
-						}
-					}
-				}
-			}`,
-		},
-	} {
-		tc.Run(t)
+		tc.run(t)
 	}
 }

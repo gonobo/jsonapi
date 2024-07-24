@@ -64,19 +64,19 @@ func DefaultConfig() Config {
 	}
 }
 
-func ResolvesContext(resolver jsonapi.RequestContextResolver) Options {
+func WithContextResolver(resolver jsonapi.RequestContextResolver) Options {
 	return func(c *Config) {
 		c.contextResolver = resolver
 	}
 }
 
-func UseMiddleware(middleware Middleware) Options {
+func WithMiddleware(middleware Middleware) Options {
 	return func(c *Config) {
 		c.middlewares = append(c.middlewares, middleware)
 	}
 }
 
-func UseDocumentOptions(options DocumentOptions) WriteOptions {
+func WithDocumentOptions(options DocumentOptions) WriteOptions {
 	return func(c *Config) {
 		c.documentOptions = append(c.documentOptions, options)
 	}

@@ -60,7 +60,7 @@ func (p PageNavigationParser) ParsePageQuery(r *http.Request) (Criteria, error) 
 
 type CursorNavigationParser struct{}
 
-func (c CursorNavigationParser) PagePageQuery(r *http.Request) (Criteria, error) {
+func (c CursorNavigationParser) ParsePageQuery(r *http.Request) (Criteria, error) {
 	criteria := Criteria{}
 	params := make(Params)
 	for k, v := range r.URL.Query() {

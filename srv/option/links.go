@@ -12,7 +12,7 @@ import (
 
 // WithLink adds a URL to the response document's links attribute.
 func WithLink(key string, href string) srv.WriteOptions {
-	return srv.UseDocumentOptions(
+	return srv.WithDocumentOptions(
 		func(w http.ResponseWriter, d *jsonapi.Document) error {
 			if d.Links == nil {
 				d.Links = jsonapi.Links{}

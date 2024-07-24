@@ -18,7 +18,7 @@ type PageQueryParser interface {
 // WithPaginationQueryParser parses the sort parameters from the URL query and
 // stores them within the JSON:API context.
 func WithPaginationQueryParser(parser PageQueryParser) srv.Options {
-	return srv.UseMiddleware(func(next http.Handler) http.Handler {
+	return srv.WithMiddleware(func(next http.Handler) http.Handler {
 		return pageParamResolver{next, parser}
 	})
 }

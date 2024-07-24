@@ -17,7 +17,7 @@ type FieldsetQueryParser interface {
 // WithFieldsetQueryParser is a middleware that resolves the fieldset parameters from the request
 // and stores them within the JSON:API request context.
 func WithFieldsetQueryParser(parser FieldsetQueryParser) srv.Options {
-	return srv.UseMiddleware(resolveFieldsetParams(parser))
+	return srv.WithMiddleware(resolveFieldsetParams(parser))
 }
 
 func resolveFieldsetParams(parser FieldsetQueryParser) srv.Middleware {

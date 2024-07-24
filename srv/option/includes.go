@@ -18,17 +18,24 @@ var (
 	JSONUnmarshal func([]byte, any) error = json.Unmarshal
 )
 
+// ResourceMuxer serves incoming requests associated with a server resource type.
+// It is implemented by the srv.ResourceMux struct.
+type ResourceMuxer interface {
+	// ServeResourceHTTP handles incoming requests associated with a server resource type.
+	ServeResourceHTTP(http.ResponseWriter, *http.Request)
+}
+
 // WithIncludedResources uses the provided resource mux to lookup the client-request
 // server resources associated with the response document's primary data,
 // and add it to the "included" array.
 //
 // WithIncludedResources currently supports inclusion requests only one level deep;
 // dot notation for multiple inclusions is not supported.
-func WithIncludedResources(r *http.Request, mux *srv.ResourceMux) srv.WriteOptions {
+func WithIncludedResources(r *http.Request, mux ResourceMuxer) srv.WriteOptions {
 	return srv.WithDocumentOptions(resolveIncludes(r, mux))
 }
 
-func resolveIncludes(r *http.Request, mux *srv.ResourceMux) srv.DocumentOptions {
+func resolveIncludes(r *http.Request, mux ResourceMuxer) srv.DocumentOptions {
 	return func(w http.ResponseWriter, d *jsonapi.Document) error {
 		resolver := includeResolver{d, mux}
 		return resolver.Resolve(w, r)
@@ -37,7 +44,7 @@ func resolveIncludes(r *http.Request, mux *srv.ResourceMux) srv.DocumentOptions 
 
 type includeResolver struct {
 	Document *jsonapi.Document
-	Mux      *srv.ResourceMux
+	Mux      ResourceMuxer
 }
 
 func (ir includeResolver) Resolve(w http.ResponseWriter, r *http.Request) error {

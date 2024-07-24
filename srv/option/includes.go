@@ -25,6 +25,19 @@ type ResourceMuxer interface {
 	ServeResourceHTTP(http.ResponseWriter, *http.Request)
 }
 
+func UseIncludeQueryParser() srv.Options {
+	return srv.WithMiddleware(
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				include := strings.Split(r.URL.Query().Get(QueryParamInclude), ",")
+				ctx, _ := jsonapi.GetContext(r.Context())
+				ctx.Include = include
+				next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))
+			})
+		},
+	)
+}
+
 // WithIncludedResources uses the provided resource mux to lookup the client-request
 // server resources associated with the response document's primary data,
 // and add it to the "included" array.
@@ -38,7 +51,7 @@ func WithIncludedResources(r *http.Request, mux ResourceMuxer) srv.WriteOptions 
 func resolveIncludes(r *http.Request, mux ResourceMuxer) srv.DocumentOptions {
 	return func(w http.ResponseWriter, d *jsonapi.Document) error {
 		resolver := includeResolver{d, mux}
-		return resolver.Resolve(w, r)
+		return resolver.Resolve(r)
 	}
 }
 
@@ -47,8 +60,10 @@ type includeResolver struct {
 	Mux      ResourceMuxer
 }
 
-func (ir includeResolver) Resolve(w http.ResponseWriter, r *http.Request) error {
-	include := strings.Split(r.URL.Query().Get(QueryParamInclude), ",")
+func (ir includeResolver) Resolve(r *http.Request) error {
+	ctx, _ := jsonapi.GetContext(r.Context())
+	include := ctx.Include
+
 	if len(include) == 0 {
 		// nothing to do, included resources were not requested
 		return nil
@@ -57,12 +72,11 @@ func (ir includeResolver) Resolve(w http.ResponseWriter, r *http.Request) error 
 	// memoize included resources; some relationships might share the same resource -- no need
 	// to include it multiple times.
 	memo := make(map[string]*jsonapi.Resource)
-	mux := srv.GetResourceMux(r)
 
 	// iterate through each resource, fetching the related resource associated with the target relationship.
 	for _, item := range ir.Document.Data.Items() {
 		for _, relationship := range include {
-			err := ir.fetchRelated(r, mux, relationship, item, memo)
+			err := ir.fetchRelated(r, relationship, item, memo)
 			if err != nil {
 				return fmt.Errorf("resolve included: failed to fetch related: %w", err)
 			}
@@ -72,7 +86,7 @@ func (ir includeResolver) Resolve(w http.ResponseWriter, r *http.Request) error 
 }
 
 func (ir includeResolver) fetchRelated(r *http.Request,
-	mux *srv.ResourceMux, relationship string, item *jsonapi.Resource, memo map[string]*jsonapi.Resource) error {
+	relationship string, item *jsonapi.Resource, memo map[string]*jsonapi.Resource) error {
 	if item.Relationships == nil {
 		// nothing to include, return early
 		return nil
@@ -91,7 +105,7 @@ func (ir includeResolver) fetchRelated(r *http.Request,
 	ctx := ir.createRequestContext(ref.Data)
 	mem := srv.MemoryWriter{}
 
-	mux.ServeResourceHTTP(&mem, jsonapi.RequestWithContext(r, &ctx))
+	ir.Mux.ServeResourceHTTP(&mem, jsonapi.RequestWithContext(r, &ctx))
 
 	if mem.Status != http.StatusOK {
 		return fmt.Errorf("failed to retrieve included resources: %s", relationship)

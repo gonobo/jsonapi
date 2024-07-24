@@ -8,9 +8,13 @@ import (
 	"github.com/gonobo/jsonapi/srv"
 )
 
-// Sort orders resources in the response document according to the specified
+const (
+	HeaderKeyLocation = "Location"
+)
+
+// UseSortParams orders resources in the response document according to the specified
 // sort criterion.
-func Sort(cmp jsonapi.Comparator, criterion []query.Sort) srv.WriteOptions {
+func UseSortParams(cmp jsonapi.Comparator, criterion []query.Sort) srv.WriteOptions {
 	return srv.UseDocumentOptions(
 		func(w http.ResponseWriter, d *jsonapi.Document) error {
 			d.Sort(cmp, criterion)
@@ -19,8 +23,8 @@ func Sort(cmp jsonapi.Comparator, criterion []query.Sort) srv.WriteOptions {
 	)
 }
 
-// Meta adds a key/value pair to the response document's meta attribute.
-func Meta(key string, value any) srv.WriteOptions {
+// WithMetaValue adds a key/value pair to the response document's meta attribute.
+func WithMetaValue(key string, value any) srv.WriteOptions {
 	return srv.UseDocumentOptions(
 		func(w http.ResponseWriter, d *jsonapi.Document) error {
 			if d.Meta == nil {
@@ -31,10 +35,28 @@ func Meta(key string, value any) srv.WriteOptions {
 		})
 }
 
-// VisitDocument applies the visitor to the response document. Visitors can traverse and modify
+// UseDocumentVisitor applies the visitor to the response document. Visitors can traverse and modify
 // a document's nodes.
-func VisitDocument(visitor jsonapi.PartialVisitor) srv.WriteOptions {
+func UseDocumentVisitor(visitor jsonapi.PartialVisitor) srv.WriteOptions {
 	return srv.UseDocumentOptions(func(w http.ResponseWriter, d *jsonapi.Document) error {
 		return d.ApplyVisitor(visitor.Visitor())
 	})
+}
+
+// WithLocationHeader adds the "Location" http header to the response. The resulting
+// URL is based on the primary data resource's type and id.
+func WithLocationHeader(baseURL string, resolver jsonapi.URLResolver) srv.WriteOptions {
+	return srv.UseDocumentOptions(writeLocationHeader(baseURL, resolver))
+}
+
+func writeLocationHeader(baseURL string, resolver jsonapi.URLResolver) srv.DocumentOptions {
+	return func(w http.ResponseWriter, d *jsonapi.Document) error {
+		data := d.Data.First()
+		location := resolver.ResolveURL(jsonapi.RequestContext{
+			ResourceType: data.Type,
+			ResourceID:   data.ID,
+		}, baseURL)
+		w.Header().Add(HeaderKeyLocation, location)
+		return nil
+	}
 }

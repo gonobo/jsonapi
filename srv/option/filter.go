@@ -15,10 +15,10 @@ type FilterQueryParser interface {
 	ParseFilterQuery(*http.Request) (query.FilterExpression, error)
 }
 
-// ParsesFilterParams is a middleware that parses and extracts any filter parameters in the
+// WithFilterQueryParser is a middleware that parses and extracts any filter parameters in the
 // request query and generates a filter expression stored within
 // the JSON:API request context.
-func ParsesFilterParams(parser FilterQueryParser) srv.Options {
+func WithFilterQueryParser(parser FilterQueryParser) srv.Options {
 	return srv.UseMiddleware(resolveFilterParams(parser))
 }
 

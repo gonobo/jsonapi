@@ -18,13 +18,13 @@ var (
 	JSONUnmarshal func([]byte, any) error = json.Unmarshal
 )
 
-// ResolveIncludes uses the provided resource mux to lookup the client-request
+// UseIncludeResolver uses the provided resource mux to lookup the client-request
 // server resources associated with the response document's primary data,
 // and add it to the "included" array.
 //
-// ResolveIncludes currently supports inclusion requests only one level deep;
+// UseIncludeResolver currently supports inclusion requests only one level deep;
 // dot notation for multiple inclusions is not supported.
-func ResolveIncludes(r *http.Request, mux *srv.ResourceMux) srv.WriteOptions {
+func UseIncludeResolver(r *http.Request, mux *srv.ResourceMux) srv.WriteOptions {
 	return srv.UseDocumentOptions(resolveIncludes(r, mux))
 }
 

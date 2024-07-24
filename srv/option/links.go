@@ -10,8 +10,8 @@ import (
 	"github.com/gonobo/jsonapi/srv"
 )
 
-// Link adds a URL to the response document's links attribute.
-func Link(key string, href string) srv.WriteOptions {
+// WithLink adds a URL to the response document's links attribute.
+func WithLink(key string, href string) srv.WriteOptions {
 	return srv.UseDocumentOptions(
 		func(w http.ResponseWriter, d *jsonapi.Document) error {
 			if d.Links == nil {
@@ -26,10 +26,10 @@ func Link(key string, href string) srv.WriteOptions {
 		})
 }
 
-// SelfLink adds the full request URL to the response document's links attribute.
-func SelfLink(r *http.Request) srv.WriteOptions {
+// WithSelfLink adds the full request URL to the response document's links attribute.
+func WithSelfLink(r *http.Request) srv.WriteOptions {
 	href := r.URL.String()
-	return Link("self", href)
+	return WithLink("self", href)
 }
 
 func pageCursorLink(r *http.Request, name string, cursor string, limit int) srv.WriteOptions {
@@ -44,32 +44,32 @@ func pageCursorLink(r *http.Request, name string, cursor string, limit int) srv.
 	}
 
 	requestURL.RawQuery = query.Encode()
-	return Link(name, requestURL.String())
+	return WithLink(name, requestURL.String())
 }
 
-// NextPageCursorLink adds the next pagination URL to the response document's links attribute.
-func NextPageCursorLink(r *http.Request, cursor string, limit int) srv.WriteOptions {
+// WithNextPageCursorLink adds the next pagination URL to the response document's links attribute.
+func WithNextPageCursorLink(r *http.Request, cursor string, limit int) srv.WriteOptions {
 	return pageCursorLink(r, "next", cursor, limit)
 }
 
-// PrevPageCursorLink adds the next pagination URL to the response document's links attribute.
-func PrevPageCursorLink(r *http.Request, cursor string, limit int) srv.WriteOptions {
+// WithPrevPageCursorLink adds the next pagination URL to the response document's links attribute.
+func WithPrevPageCursorLink(r *http.Request, cursor string, limit int) srv.WriteOptions {
 	return pageCursorLink(r, "prev", cursor, limit)
 }
 
-// FirstPageCursorLink adds the next pagination URL to the response document's links attribute.
-func FirstPageCursorLink(r *http.Request, cursor string, limit int) srv.WriteOptions {
+// WithFirstPageCursorLink adds the next pagination URL to the response document's links attribute.
+func WithFirstPageCursorLink(r *http.Request, cursor string, limit int) srv.WriteOptions {
 	return pageCursorLink(r, "first", cursor, limit)
 }
 
 // PrevPageCursorLink adds the next pagination URL to the response document's links attribute.
-func LastPageCursorLink(r *http.Request, cursor string, limit int) srv.WriteOptions {
+func WithLastPageCursorLink(r *http.Request, cursor string, limit int) srv.WriteOptions {
 	return pageCursorLink(r, "last", cursor, limit)
 }
 
-// ResourceLinks applies the "self" and "related" links to all resources and resource relationships
+// WithResourceLinks applies the "self" and "related" links to all resources and resource relationships
 // embedded in the response document.
-func ResourceLinks(baseURL string, resolver jsonapi.URLResolver) srv.WriteOptions {
+func WithResourceLinks(baseURL string, resolver jsonapi.URLResolver) srv.WriteOptions {
 	const keyParentType = "$__parenttype"
 	const keyParentID = "$__parentid"
 	const keyRelName = "$__relname"
@@ -132,5 +132,5 @@ func ResourceLinks(baseURL string, resolver jsonapi.URLResolver) srv.WriteOption
 		},
 	}
 
-	return VisitDocument(visitor)
+	return UseDocumentVisitor(visitor)
 }

@@ -54,7 +54,7 @@ func TestMeta(t *testing.T) {
 		{
 			name: "adds a meta string value",
 			options: []srv.WriteOptions{
-				option.Meta("mystring", "string_value"),
+				option.WithMetaValue("mystring", "string_value"),
 			},
 			wantDocument: jsonapi.Document{
 				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
@@ -71,7 +71,7 @@ func TestLink(t *testing.T) {
 		{
 			name: "adds a link",
 			options: []srv.WriteOptions{
-				option.Link("test", "http://www.example.com/things/1"),
+				option.WithLink("test", "http://www.example.com/things/1"),
 			},
 			wantDocument: jsonapi.Document{
 				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
@@ -83,7 +83,7 @@ func TestLink(t *testing.T) {
 		{
 			name: "fails with invalid link",
 			options: []srv.WriteOptions{
-				option.Link("test", "this is not a url"),
+				option.WithLink("test", "this is not a url"),
 			},
 			wantStatusErr: http.StatusInternalServerError,
 		},
@@ -97,7 +97,7 @@ func TestSelfLink(t *testing.T) {
 		{
 			name: "adds a self link",
 			options: []srv.WriteOptions{
-				option.SelfLink(httptest.NewRequest("GET", "http://www.example.com/things/1", nil)),
+				option.WithSelfLink(httptest.NewRequest("GET", "http://www.example.com/things/1", nil)),
 			},
 			wantDocument: jsonapi.Document{
 				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
@@ -127,7 +127,7 @@ func TestNextPageCursorLink(t *testing.T) {
 		{
 			name: "adds a next page link",
 			options: []srv.WriteOptions{
-				option.NextPageCursorLink(
+				option.WithNextPageCursorLink(
 					httptest.NewRequest("GET", "http://www.example.com/things/1", nil),
 					"page-cursor",
 					100,
@@ -152,7 +152,7 @@ func TestResourceLinks(t *testing.T) {
 		{
 			name: "adds a next page link",
 			options: []srv.WriteOptions{
-				option.ResourceLinks("http://www.example.com/api", jsonapi.DefaultURLResolver()),
+				option.WithResourceLinks("http://www.example.com/api", jsonapi.DefaultURLResolver()),
 			},
 			doc: *jsonapi.NewSingleDocument(&jsonapi.Resource{
 				Type: "things",

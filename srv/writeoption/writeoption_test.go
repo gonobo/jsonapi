@@ -1,4 +1,4 @@
-package option_test
+package writeoption_test
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/gonobo/jsonapi"
 	"github.com/gonobo/jsonapi/srv"
-	"github.com/gonobo/jsonapi/srv/option"
+	"github.com/gonobo/jsonapi/srv/writeoption"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +25,7 @@ type writeOptionTestCase struct {
 func (tc writeOptionTestCase) Run(t *testing.T) {
 	t.Run(tc.name, func(t *testing.T) {
 		recorder := httptest.NewRecorder()
-		srv.Write(recorder, &tc.doc, tc.options...)
+		srv.Write(recorder, &tc.doc, http.StatusOK, tc.options...)
 		if tc.wantStatusErr > 0 {
 			assert.Equal(t, tc.wantStatusErr, recorder.Result().StatusCode)
 			return
@@ -54,7 +54,7 @@ func TestMeta(t *testing.T) {
 		{
 			name: "adds a meta string value",
 			options: []srv.WriteOptions{
-				option.WithMetaValue("mystring", "string_value"),
+				writeoption.WithMetaValue("mystring", "string_value"),
 			},
 			wantDocument: jsonapi.Document{
 				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
@@ -71,7 +71,7 @@ func TestLink(t *testing.T) {
 		{
 			name: "adds a link",
 			options: []srv.WriteOptions{
-				option.WithLink("test", "http://www.example.com/things/1"),
+				writeoption.WithLink("test", "http://www.example.com/things/1"),
 			},
 			wantDocument: jsonapi.Document{
 				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
@@ -83,7 +83,7 @@ func TestLink(t *testing.T) {
 		{
 			name: "fails with invalid link",
 			options: []srv.WriteOptions{
-				option.WithLink("test", "this is not a url"),
+				writeoption.WithLink("test", "this is not a url"),
 			},
 			wantStatusErr: http.StatusInternalServerError,
 		},
@@ -97,7 +97,7 @@ func TestSelfLink(t *testing.T) {
 		{
 			name: "adds a self link",
 			options: []srv.WriteOptions{
-				option.WithSelfLink(httptest.NewRequest("GET", "http://www.example.com/things/1", nil)),
+				writeoption.WithSelfLink(httptest.NewRequest("GET", "http://www.example.com/things/1", nil)),
 			},
 			wantDocument: jsonapi.Document{
 				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
@@ -127,7 +127,7 @@ func TestNextPageCursorLink(t *testing.T) {
 		{
 			name: "adds a next page link",
 			options: []srv.WriteOptions{
-				option.WithNextPageCursorLink(
+				writeoption.WithNextPageCursorLink(
 					httptest.NewRequest("GET", "http://www.example.com/things/1", nil),
 					"page-cursor",
 					100,
@@ -152,7 +152,7 @@ func TestResourceLinks(t *testing.T) {
 		{
 			name: "adds a next page link",
 			options: []srv.WriteOptions{
-				option.WithResourceLinks("http://www.example.com/api", jsonapi.DefaultURLResolver()),
+				writeoption.WithResourceLinks("http://www.example.com/api", jsonapi.DefaultURLResolver()),
 			},
 			doc: *jsonapi.NewSingleDocument(&jsonapi.Resource{
 				Type: "things",

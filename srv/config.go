@@ -19,6 +19,8 @@ type jsonapiMarshalFunc = func(any) (jsonapi.Document, error)
 
 type jsonMarshalFunc = func(any) ([]byte, error)
 
+type jsonUnmarshalFunc = func([]byte, any) error
+
 type DocumentOptions = func(http.ResponseWriter, *jsonapi.Document) error
 
 type Middleware = func(next http.Handler) http.Handler

@@ -1,6 +1,7 @@
 package srv
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -8,43 +9,59 @@ import (
 	"github.com/gonobo/jsonapi"
 )
 
-// MemoryWriter mw wraps and implements http.ResponseWriter, capturing
+// Recorder mw wraps and implements http.ResponseWriter, capturing
 // WriteHeader() and Write() into an internal buffer. To send data
 // to the underlying response writer, call mw.Flush().
-type MemoryWriter struct {
-	Status    int         // The return status code.
-	Body      []byte      // The return payload.
-	HeaderMap http.Header // The return headers
+type Recorder struct {
+	Status        int               // The return status code.
+	HeaderMap     http.Header       // The return headers.
+	Document      *jsonapi.Document // The jsonapi document payload.
+	JSONUnmarshal jsonUnmarshalFunc
+	JSONMarshal   jsonMarshalFunc
+}
+
+// NewRecorder creates and initializes a new memory writer
+// for use as a http response writer.
+func NewRecorder() *Recorder {
+	return &Recorder{
+		HeaderMap:     make(http.Header),
+		JSONUnmarshal: json.Unmarshal,
+		JSONMarshal:   json.Marshal,
+	}
 }
 
 // Write stores the content of p into an internal buffer.
-func (m *MemoryWriter) Write(p []byte) (int, error) {
-	m.Body = make([]byte, 0, len(p))
-	return copy(m.Body, p), nil
+func (m *Recorder) Write(p []byte) (int, error) {
+	m.Document = &jsonapi.Document{}
+	err := m.JSONUnmarshal(p, m.Document)
+	return len(p), err
 }
 
-func (m *MemoryWriter) Header() http.Header {
-	if m.HeaderMap == nil {
-		m.HeaderMap = make(http.Header)
-	}
+// Header returns a header map. It is the same header map
+// used in a standard http response writer.
+func (m *Recorder) Header() http.Header {
 	return m.HeaderMap
 }
 
 // WriteHeader stores the status value in memory.
-func (m *MemoryWriter) WriteHeader(status int) {
+func (m *Recorder) WriteHeader(status int) {
 	m.Status = status
 }
 
 // Flush sends the status code and body buffer to the underlying writer.
-func (m MemoryWriter) Flush(w http.ResponseWriter) {
+func (m Recorder) Flush(w http.ResponseWriter) {
 	for k, v := range m.Header() {
 		w.Header()[k] = v
 	}
 	if m.Status != 0 {
 		w.WriteHeader(m.Status)
 	}
-	if len(m.Body) > 0 {
-		swallowWriteResult(w.Write(m.Body))
+	if m.Document != nil {
+		body, err := m.JSONMarshal(m.Document)
+		if err != nil {
+			panic(fmt.Errorf("memory writer: failed to marshal body: %w", err))
+		}
+		swallowWriteResult(w.Write(body))
 	}
 }
 
@@ -55,9 +72,14 @@ func (m MemoryWriter) Flush(w http.ResponseWriter) {
 //
 // As with ResponseWriter.Write(), the caller should ensure no other calls are
 // made to w after Write() is called.
-func Write(w http.ResponseWriter, in any, options ...WriteOptions) {
+func Write(w http.ResponseWriter, in any, status int, options ...WriteOptions) {
 	cfg := DefaultConfig()
 	cfg.ApplyWriteOptions(options...)
+
+	if in == nil {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 
 	doc, err := cfg.jsonapiMarshal(in)
 
@@ -85,6 +107,12 @@ func Write(w http.ResponseWriter, in any, options ...WriteOptions) {
 		return
 	}
 
+	// add jsonapi header
+	w.Header().Add("Content-Type", jsonapi.MediaType)
+
+	// write status header
+	w.WriteHeader(status)
+
 	// ResponseWriter.Write() fulfills the io.Writer interface.
 	swallowWriteResult(w.Write(data))
 }
@@ -99,8 +127,6 @@ func Error(w http.ResponseWriter, err error, status int, options ...WriteOptions
 	var doc jsonapi.Document
 	var jsonapierr jsonapi.Error
 
-	w.WriteHeader(status)
-
 	if errors.As(err, &jsonapierr) {
 		doc.Errors = append(doc.Errors, &jsonapierr)
 	} else {
@@ -108,7 +134,7 @@ func Error(w http.ResponseWriter, err error, status int, options ...WriteOptions
 		doc.Errors = append(doc.Errors, &jsonapierr)
 	}
 
-	Write(w, doc, options...)
+	Write(w, doc, status, options...)
 }
 
 func swallowWriteResult(int, error) {}

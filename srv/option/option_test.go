@@ -58,7 +58,7 @@ func TestPageQueryParser(t *testing.T) {
 							Limit:  100,
 						})
 						w.WriteHeader(http.StatusOK)
-						srv.Write(w, jsonapi.NewMultiDocument())
+						srv.Write(w, jsonapi.NewMultiDocument(), http.StatusOK)
 					}))
 			},
 			req:        httptest.NewRequest("GET", "https://example.com/things?page[cursor]=abc&page[limit]=100", nil),

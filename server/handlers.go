@@ -65,28 +65,15 @@ func Handle(handler http.Handler, options ...Options) Handler {
 	return Handler{cfg, wrapped}
 }
 
-// ResourceMux is similar to [http.ServeMux], but instead of routing requests from URL patterns,
+// ResourceMux is similar to [http.ServeMux], but instead of routing requests directly from URL patterns,
 // routes are resolved by JSON:API resource type. Add resource handlers
 // via the ResourceMux's HandleResource() method. When an incoming request
 // is received, and the JSON:API request context is resolved, the handler that resolves
 // the request will be determined by the request context's resource type.
 //
-// ResourceMux must have be wrapped or have a parent handler wrapped by [Handle]
+// ResourceMux must have be wrapped by or have a parent handler wrapped by [Handle]
 // to provide JSON:API request context.
-//
-// The zero value of ResourceMux is not initialized; use the [NewResourceMux] function
-// to create a new instance of ResourceMux.
-type ResourceMux struct {
-	handlers map[string]http.Handler
-}
-
-// NewResourceMux returns a newly initialized JSON:API resource multiplexer.
-func NewResourceMux(options ...Options) ResourceMux {
-	mux := ResourceMux{
-		handlers: make(map[string]http.Handler),
-	}
-	return mux
-}
+type ResourceMux map[string]http.Handler
 
 // GetResourceMux returns the root resource mux stored within the request context.
 // If the mux is not found, GetResourceMux() panics.
@@ -102,13 +89,13 @@ func SetResourceMux(r *http.Request, m *ResourceMux) *http.Request {
 	return r.WithContext(ctx)
 }
 
-// HandleResource adds a request handler to the mux. All requests associated with the provided resource type will be
+// Handle adds a request handler to the mux. All requests associated with the provided resource type will be
 // served by the provided handler.
-func (m *ResourceMux) HandleResource(resource string, handler http.Handler) {
-	m.handlers[resource] = handler
+func (m ResourceMux) Handle(resource string, handler http.Handler) {
+	m[resource] = handler
 }
 
-// ServeHTTP  uses the embedded JSON:API request context to forward requests
+// ServeHTTP uses the embedded JSON:API request context to forward requests
 // to their associated handler. If no handler is found, a 404 is returned to the client.
 func (m ResourceMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, ok := jsonapi.GetContext(r.Context())
@@ -117,7 +104,7 @@ func (m ResourceMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resource, ok := m.handlers[ctx.ResourceType]
+	resource, ok := m[ctx.ResourceType]
 	if !ok {
 		serveNotFound(w)
 		return
@@ -132,7 +119,7 @@ func (m ResourceMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // by the HTTP method and the JSON:API context. Resource instances
 // are intended to be used in conjunction with [ResourceMux].
 //
-// Resource must be wrapped or have a parent handler wrapped by [Handle]
+// Resource must be wrapped by or have a parent handler wrapped by [Handle]
 // to provide JSON:API request context.
 //
 // The handler members are optional. If the corresponding request
@@ -260,10 +247,13 @@ func (h Relationship) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	serveNotFound(w)
 }
 
-// RelationshipMux is a http handler multiplexor for a resource's relationships.
+// RelationshipMux is a http handler multiplexer for a resource's relationships.
 // Each handler within the mux corresponds to a specific relationship, indexed
 // the relationship name. If the relationship is not defined, a 404 error is
 // returned to the client.
+//
+// RelationshipMux must be wrapped by or have a parent handler wrapped by [Handle]
+// to provide JSON:API request context.
 type RelationshipMux map[string]http.Handler
 
 // ServeHTTP handles incoming JSON:API requests for resource relationships.

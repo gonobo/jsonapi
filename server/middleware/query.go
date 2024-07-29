@@ -10,10 +10,6 @@ import (
 	"github.com/gonobo/jsonapi/server"
 )
 
-const (
-	QueryParamInclude = "include"
-)
-
 // FieldsetQueryParser is a function that parses the fieldset query parameters.
 type FieldsetQueryParser interface {
 	ParseFieldsetQuery(*http.Request) ([]query.Fieldset, error)
@@ -121,7 +117,7 @@ func UseSortQueryParser(parser SortQueryParser) server.Options {
 func UseIncludeQueryParser() server.Options {
 	return server.WithMiddleware(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			include := strings.Split(r.URL.Query().Get(QueryParamInclude), ",")
+			include := strings.Split(r.URL.Query().Get(query.ParamInclude), ",")
 			ctx, _ := jsonapi.GetContext(r.Context())
 			ctx.Include = include
 			next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))

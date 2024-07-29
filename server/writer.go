@@ -13,7 +13,9 @@ import (
 )
 
 const (
-	HeaderKeyLocation = "Location"
+	HeaderKeyLocation    = "Location"
+	LinkAttributeSelf    = "self"
+	LinkAttributeRelated = "related"
 )
 
 // ResponseRecorder rr implements [http.ResponseWriter], capturing
@@ -168,7 +170,7 @@ func WriteLink(key string, href string) WriteOptions {
 // WriteSelfLink adds the full request URL to the response document's links attribute.
 func WriteSelfLink(r *http.Request) WriteOptions {
 	href := r.URL.String()
-	return WriteLink("self", href)
+	return WriteLink(LinkAttributeSelf, href)
 }
 
 func pageCursorLink(r *http.Request, name string, cursor string, limit int) WriteOptions {
@@ -234,7 +236,7 @@ func WriteResourceLinks(baseURL string, resolver jsonapi.URLResolver) WriteOptio
 				r.Links = jsonapi.Links{}
 			}
 
-			r.Links["self"] = &jsonapi.Link{Href: self}
+			r.Links[LinkAttributeSelf] = &jsonapi.Link{Href: self}
 
 			for name, rel := range r.Relationships {
 				if rel.Meta == nil {
@@ -270,8 +272,8 @@ func WriteResourceLinks(baseURL string, resolver jsonapi.URLResolver) WriteOptio
 				r.Links = jsonapi.Links{}
 			}
 
-			r.Links["self"] = &jsonapi.Link{Href: self}
-			r.Links["related"] = &jsonapi.Link{Href: related}
+			r.Links[LinkAttributeSelf] = &jsonapi.Link{Href: self}
+			r.Links[LinkAttributeRelated] = &jsonapi.Link{Href: related}
 
 			delete(r.Meta, keyParentType)
 			delete(r.Meta, keyParentID)

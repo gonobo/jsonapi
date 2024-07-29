@@ -13,11 +13,11 @@ type Criteria = query.Page
 type Params map[string]string
 
 func (p Params) Cursor() string {
-	return p["page[cursor]"]
+	return p[query.ParamPageCursor]
 }
 
 func (p Params) Limit() (int, error) {
-	value := p["page[limit]"]
+	value := p[query.ParamPageLimit]
 	if value == "" {
 		return 0, nil
 	}
@@ -26,7 +26,7 @@ func (p Params) Limit() (int, error) {
 }
 
 func (p Params) PageNumber() (int, error) {
-	value := p["page[number]"]
+	value := p[query.ParamPageNumber]
 	if value == "" {
 		return 0, nil
 	}

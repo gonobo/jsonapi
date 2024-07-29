@@ -25,10 +25,11 @@ type testcase struct {
 
 func (tc testcase) run(t *testing.T) {
 	t.Run(tc.name, func(t *testing.T) {
-		mux := server.NewResourceMux(tc.options...)
+		mux := server.ResourceMux{}
+		handler := server.Handle(mux, tc.options...)
 		tc.muxconfig(t, &mux)
 		w := httptest.NewRecorder()
-		mux.ServeHTTP(w, tc.req)
+		handler.ServeHTTP(w, tc.req)
 
 		gotStatus := w.Result().StatusCode
 		assert.Equal(t, tc.wantStatus, gotStatus)
@@ -50,7 +51,7 @@ func TestPageQueryParser(t *testing.T) {
 				middleware.UsePaginationQueryParser(pagination.CursorNavigationParser{}),
 			},
 			muxconfig: func(t *testing.T, rm *server.ResourceMux) {
-				rm.HandleResource("things", http.HandlerFunc(
+				rm.Handle("things", http.HandlerFunc(
 					func(w http.ResponseWriter, r *http.Request) {
 						ctx, _ := jsonapi.GetContext(r.Context())
 						assert.EqualValues(t, ctx.Pagination, query.Page{

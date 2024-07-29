@@ -160,6 +160,33 @@ type Comparator interface {
 	Compare(i, j int, attribute string) int
 }
 
+// ComparatorFunc functions implement Comparator.
+type ComparatorFunc func(i, j int, attribute string) int
+
+// Compare compares items indexed at i and j, returning negative if less,
+// positive if greater, or zero if equal.
+func (f ComparatorFunc) Compare(i, j int, attribute string) int {
+	return f(i, j, attribute)
+}
+
+// Comparer determines the order of two items.
+type Comparer[T any] func(a, b T) int
+
+// ResourceComparator returns a Comparator that compares two resources a and b
+// based on an attribute specified by the key index of map m.
+func ResourceComparator[S ~[]T, T any](arr S, m map[string]Comparer[T]) Comparator {
+	return ComparatorFunc(func(i, j int, attribute string) int {
+		compare, ok := m[attribute]
+		if !ok {
+			// attribute cannot be compared, assume a is less than b
+			// in this regard.
+			return i - j
+		}
+		a, b := arr[i], arr[j]
+		return compare(a, b)
+	})
+}
+
 // Sort sorts the document's primary data by comparing the resources
 // against the provided sort criterion.
 func (d *Document) Sort(cmp Comparator, criterion []query.Sort) {
@@ -308,6 +335,10 @@ func (r Resource) Ref() *Resource {
 	}
 }
 
+func (r *Resource) refOnly() {
+	*r = *r.Ref()
+}
+
 // MarshalJSONAPI returns a shallow copy of this resource.
 func (r Resource) MarshalJSONAPI() (*Resource, error) {
 	return &r, nil
@@ -335,9 +366,28 @@ func (r Resource) nodeid() string {
 // See https://jsonapi.org/format/#document-resource-object-relationships
 // for details.
 type Relationship struct {
-	Data  PrimaryData `json:"data,omitempty"`  // Relationship data containing associated references.
-	Links Links       `json:"links,omitempty"` // URL links related to the relationship.
-	Meta  Meta        `json:"meta,omitempty"`  // Non-standard information related to the relationship.
+	Data  PrimaryData // Relationship data containing associated references.
+	Links Links       // URL links related to the relationship.
+	Meta  Meta        // Non-standard information related to the relationship.
+}
+
+func (r Relationship) MarshalJSON() ([]byte, error) {
+	if r.Data != nil {
+		items := r.Data.Items()
+		for _, item := range items {
+			item.refOnly()
+		}
+	}
+
+	type out struct {
+		Data  PrimaryData `json:"data,omitempty"`
+		Links Links       `json:"links,omitempty"`
+		Meta  Meta        `json:"meta,omitempty"`
+	}
+
+	node := node[out]{value: out(r)}
+
+	return json.Marshal(node)
 }
 
 // UnmarshalJSON deserializes this relationship from JSON.
@@ -401,14 +451,14 @@ type PrimaryData interface {
 	First() *Resource
 }
 
-// First is deprecated and will be removed in the next major release. Use the First()
-// method on the PrimaryData interface instead.
-//
 // First returns the first item in a primary data node -- the node itself for single or "one"
 // primary data, or the first element in multi or "many" primary data.
 //
 // If the data node is set to "null" (a jsonapi.One instance with a nil value) then nil is returned.
 // If the data node itself is nil, First() panics.
+//
+// Deprecated: First is deprecated and will be removed in the next major release. Use the First()
+// method on the PrimaryData interface instead.
 func First(data PrimaryData) *Resource {
 	log.Println("The First() function is deprecated and will be removed in the next major release. Use the PrimaryData.First() method instead.")
 	items := data.Items()

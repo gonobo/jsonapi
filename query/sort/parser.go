@@ -47,17 +47,17 @@ func (q queryParams) sortCriteria() []query.Sort {
 }
 
 func (q queryParams) sortParams() string {
-	return q["sort"]
+	return q[query.ParamSort]
 }
 
 func (q queryParams) convertTokenToCriteria(token string) query.Sort {
 	criteria := query.Sort{Descending: false}
 
-	if strings.HasPrefix(token, "-") {
-		criteria.Property = strings.TrimPrefix(token, "-")
-	} else if strings.HasPrefix(token, "+") {
+	if strings.HasPrefix(token, query.ParamSortAscendingPrefix) {
+		criteria.Property = strings.TrimPrefix(token, query.ParamSortAscendingPrefix)
+	} else if strings.HasPrefix(token, query.ParamSortDescendingPrefix) {
 		criteria.Descending = true
-		criteria.Property = strings.TrimPrefix(token, "+")
+		criteria.Property = strings.TrimPrefix(token, query.ParamSortDescendingPrefix)
 	} else {
 		criteria.Property = token
 	}

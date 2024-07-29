@@ -1,5 +1,15 @@
 package query
 
+const (
+	ParamSort                 = "sort"
+	ParamSortDescendingPrefix = "+"
+	ParamSortAscendingPrefix  = "-"
+	ParamPageCursor           = "page[cursor]"
+	ParamPageNumber           = "page[number]"
+	ParamPageLimit            = "page[limit]"
+	ParamInclude              = "include"
+)
+
 // Sort defines a sort request made by JSON:API clients.
 type Sort struct {
 	Property   string // The name of the property to sort by.

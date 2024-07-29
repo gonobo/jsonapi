@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func AssertJSONAPIEq(t *testing.T, want string, got string) bool {
+func AssertJSONAPIEq(t *testing.T, want string, got string, msgAndArgs ...any) bool {
 	var wantDoc, gotDoc jsonapi.Document
 
 	err := json.Unmarshal([]byte(want), &wantDoc)
@@ -31,5 +31,5 @@ func AssertJSONAPIEq(t *testing.T, want string, got string) bool {
 		return fail
 	}
 
-	return assert.JSONEq(t, string(wantData), string(gotData))
+	return assert.JSONEq(t, string(wantData), string(gotData), msgAndArgs...)
 }

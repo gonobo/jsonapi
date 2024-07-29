@@ -335,6 +335,8 @@ func setLocationHeader(baseURL string, resolver jsonapi.URLResolver) DocumentOpt
 	}
 }
 
+// WriteRef overwrites the primary data with the primary data's relationship,
+// referenced by name.
 func WriteRef(name string) WriteOptions {
 	return WithDocumentOptions(func(w http.ResponseWriter, d *jsonapi.Document) error {
 		first := d.Data.First()

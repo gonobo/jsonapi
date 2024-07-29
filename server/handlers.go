@@ -125,12 +125,12 @@ func (m ResourceMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // The handler members are optional. If the corresponding request
 // handler is nil, the request is rejected with a 404 Not Found response.
 type Resource struct {
-	Relationship http.Handler // Relationship handles requests to resource relationships.
-	Create       http.Handler // Create handles requests to create new resources.
-	List         http.Handler // List handles requests to list resource collections.
-	Get          http.Handler // Get handles requests to fetch a specific resource.
-	Update       http.Handler // Update handles requests to update a specific resource.
-	Delete       http.Handler // Delete handles requests to delete a specific resource.
+	Refs   http.Handler // Refs handles requests to resource relationships.
+	Create http.Handler // Create handles requests to create new resources.
+	List   http.Handler // List handles requests to list resource collections.
+	Get    http.Handler // Get handles requests to fetch a specific resource.
+	Update http.Handler // Update handles requests to update a specific resource.
+	Delete http.Handler // Delete handles requests to delete a specific resource.
 }
 
 // ServeHTTP routes incoming JSON:API requests to the appropriate resource operation.
@@ -146,8 +146,8 @@ func (h Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 2) handle resource requests
 	// 3) handle resource collection requests
 
-	if ctx.Relationship != "" && h.Relationship != nil {
-		h.Relationship.ServeHTTP(w, r)
+	if ctx.Relationship != "" && h.Refs != nil {
+		h.Refs.ServeHTTP(w, r)
 		return
 	}
 

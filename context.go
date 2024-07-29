@@ -68,9 +68,12 @@ func (c RequestContext) Root() *RequestContext {
 }
 
 // GetContext returns the JSON:API Context from the parent context.
+// Returns false if the context has not been set, or if the context
+// is nil.
 func GetContext(parent context.Context) (*RequestContext, bool) {
 	value := parent.Value(jsonapiContextKey)
 	ctx, ok := value.(*RequestContext)
+	ok = ok && ctx != nil
 	return ctx, ok
 }
 

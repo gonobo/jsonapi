@@ -334,3 +334,19 @@ func setLocationHeader(baseURL string, resolver jsonapi.URLResolver) DocumentOpt
 		return nil
 	}
 }
+
+func WriteRef(name string) WriteOptions {
+	return WithDocumentOptions(func(w http.ResponseWriter, d *jsonapi.Document) error {
+		first := d.Data.First()
+		ref, ok := first.Relationships[name]
+		if !ok {
+			return fmt.Errorf("write ref: unknown relationship %s", name)
+		}
+
+		d.Links = ref.Links
+		d.Data = ref.Data
+		d.Meta = ref.Meta
+
+		return nil
+	})
+}

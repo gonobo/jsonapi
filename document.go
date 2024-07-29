@@ -335,6 +335,10 @@ func (r Resource) Ref() *Resource {
 	}
 }
 
+func (r *Resource) refOnly() {
+	*r = *r.Ref()
+}
+
 // MarshalJSONAPI returns a shallow copy of this resource.
 func (r Resource) MarshalJSONAPI() (*Resource, error) {
 	return &r, nil
@@ -362,9 +366,28 @@ func (r Resource) nodeid() string {
 // See https://jsonapi.org/format/#document-resource-object-relationships
 // for details.
 type Relationship struct {
-	Data  PrimaryData `json:"data,omitempty"`  // Relationship data containing associated references.
-	Links Links       `json:"links,omitempty"` // URL links related to the relationship.
-	Meta  Meta        `json:"meta,omitempty"`  // Non-standard information related to the relationship.
+	Data  PrimaryData // Relationship data containing associated references.
+	Links Links       // URL links related to the relationship.
+	Meta  Meta        // Non-standard information related to the relationship.
+}
+
+func (r Relationship) MarshalJSON() ([]byte, error) {
+	if r.Data != nil {
+		items := r.Data.Items()
+		for _, item := range items {
+			item.refOnly()
+		}
+	}
+
+	type out struct {
+		Data  PrimaryData `json:"data,omitempty"`
+		Links Links       `json:"links,omitempty"`
+		Meta  Meta        `json:"meta,omitempty"`
+	}
+
+	node := node[out]{value: out(r)}
+
+	return json.Marshal(node)
 }
 
 // UnmarshalJSON deserializes this relationship from JSON.

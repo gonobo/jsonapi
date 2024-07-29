@@ -346,6 +346,7 @@ func WriteRef(name string) WriteOptions {
 		d.Links = ref.Links
 		d.Data = ref.Data
 		d.Meta = ref.Meta
+		d.Included = nil
 
 		return nil
 	})

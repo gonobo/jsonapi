@@ -7,7 +7,9 @@ import (
 	"testing"
 
 	"github.com/gonobo/jsonapi"
+	"github.com/gonobo/jsonapi/jsonapitest"
 	"github.com/gonobo/jsonapi/server"
+	"github.com/gonobo/jsonapi/server/middleware"
 	"github.com/gonobo/jsonapi/server/servertest"
 )
 
@@ -22,14 +24,6 @@ func (f fixture) Handler(t *testing.T) http.Handler {
 }
 
 type fixtureopts = servertest.FixtureOption[fixture]
-
-func writesError(status int, err error, opts ...server.WriteOptions) fixtureopts {
-	return func(t *testing.T, f *fixture) {
-		f.wrapped = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			server.Error(w, err, status, opts...)
-		})
-	}
-}
 
 func writes(status int, doc *jsonapi.Document, opts ...server.WriteOptions) fixtureopts {
 	return func(t *testing.T, f *fixture) {
@@ -155,7 +149,7 @@ func TestResourceMux(t *testing.T) {
 type node struct {
 	ID       string  `jsonapi:"primary,nodes"`
 	Value    string  `jsonapi:"attr,value"`
-	Children []*node `jsonapi:"rel,children"`
+	Children []*node `jsonapi:"relation,children"`
 }
 
 type nodeResource map[string]*node
@@ -175,7 +169,7 @@ func (n nodeResource) createNode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (n nodeResource) listNodes(w http.ResponseWriter, r *http.Request) {
-	items := make([]node, 0, len(n))
+	items := make([]*node, 0, len(n))
 	for _, item := range n {
 		items = append(items, item)
 	}
@@ -251,17 +245,129 @@ func TestResource(t *testing.T) {
 	servertest.Run(t, []testcase{
 		{
 			Name: "routes to list handler",
-			Req:  httptest.NewRequest("GET", "/this", nil),
+			Req:  httptest.NewRequest("GET", "/nodes", nil),
 			Options: []fixtureopts{
 				servesResource(nodeResource{
 					"42": {"42", "forty-two", nil},
 				}),
 			},
 			WantStatus: http.StatusOK,
+			WantBody: `
+			{
+				"data":[
+					{
+						"attributes":{"value":"forty-two"},
+						"id":"42",
+						"relationships":{
+							"children":{"data":[]}
+						},
+						"type":"nodes"
+					}
+				],
+				"jsonapi":{"version":"1.1"}
+			}`,
+		},
+		{
+			Name: "routes to create handler",
+			Req: httptest.NewRequest("POST", "/nodes", jsonapitest.Body{
+				Data: jsonapi.One{
+					Value: &jsonapi.Resource{
+						Type: "nodes",
+						Attributes: map[string]any{
+							"value": "forty-two",
+						},
+					},
+				},
+			}),
+			Options: []fixtureopts{
+				servesResource(nodeResource{}),
+				withOption(middleware.UseRequestBodyParser()),
+			},
+			WantStatus: http.StatusCreated,
+			WantBody: `{
+				"data":{
+					"attributes":{"value":"forty-two"},
+					"id":"new",
+					"relationships":{
+						"children":{"data":[]}
+					},
+					"type":"nodes"
+					},
+				"jsonapi":{"version":"1.1"}
+			}`,
+		},
+		{
+			Name: "routes to get handler",
+			Req:  httptest.NewRequest("GET", "/nodes/42", nil),
+			Options: []fixtureopts{
+				servesResource(nodeResource{"42": {"42", "forty-two", nil}}),
+			},
+			WantStatus: http.StatusOK,
+			WantBody: `{
+				"data":{
+					"attributes":{"value":"forty-two"},
+					"id":"42",
+					"relationships":{
+						"children":{"data":[]}
+					},
+					"type":"nodes"
+					},
+				"jsonapi":{"version":"1.1"}
+			}`,
+		},
+		{
+			Name: "routes to get ref handler",
+			Req:  httptest.NewRequest("GET", "/nodes/42/relationships/children", nil),
+			Options: []fixtureopts{
+				servesResource(nodeResource{"42": {
+					ID:       "42",
+					Value:    "forty-two",
+					Children: []*node{{"24", "twenty-four", nil}},
+				}}),
+			},
+			WantStatus: http.StatusOK,
 			WantBody: `{
 				"jsonapi": {"version": "1.1"},
-				"data": [{"id": "42", "type": "nodes", "attributes": {"value": "forty-two"}}]
+				"data": [{"id": "24", "type": "nodes"}]
 			}`,
+		},
+		{
+			Name: "routes to update handler",
+			Req: httptest.NewRequest("PATCH", "/nodes/42", jsonapitest.Body{
+				Data: jsonapi.One{
+					Value: &jsonapi.Resource{
+						Type: "nodes",
+						ID:   "42",
+						Attributes: map[string]any{
+							"value": "updated",
+						},
+					},
+				},
+			}),
+			Options: []fixtureopts{
+				servesResource(nodeResource{"42": {"42", "forty-two", nil}}),
+				withOption(middleware.UseRequestBodyParser()),
+			},
+			WantStatus: http.StatusOK,
+			WantBody: `{
+				"data":{
+					"attributes":{"value":"updated"},
+					"id":"42",
+					"relationships":{
+						"children":{"data":[]}
+					},
+					"type":"nodes"
+					},
+				"jsonapi":{"version":"1.1"}
+			}`,
+		},
+		{
+			Name: "routes to delete handler",
+			Req:  httptest.NewRequest("DELETE", "/nodes/42", nil),
+			Options: []fixtureopts{
+				servesResource(nodeResource{"42": {"42", "forty-two", nil}}),
+			},
+			WantStatus: http.StatusNoContent,
 		},
 		{
 			Name: "fails when request context is missing",
@@ -275,12 +381,119 @@ func TestResource(t *testing.T) {
 			WantStatus: http.StatusInternalServerError,
 		},
 		{
-			Name: "returns 404 on unhandled endpoint",
+			Name: "relationship mux fails when request context is missing",
+			Req:  httptest.NewRequest("GET", "/nodes/42/relationships/children", nil),
+			Options: []fixtureopts{
+				wrapsHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					handler := server.RelationshipMux{}
+					handler.ServeHTTP(w, jsonapi.RequestWithContext(r, nil))
+				})),
+			},
+			WantStatus: http.StatusInternalServerError,
+		},
+		{
+			Name: "returns 404 on unknown ref endpoint",
+			Req:  httptest.NewRequest("GET", "/nodes/42/relationships/unknown", nil),
+			Options: []fixtureopts{
+				servesResource(nodeResource{}),
+			},
+			WantStatus: http.StatusNotFound,
+		},
+		{
+			Name: "returns 404 on unhandled list resources endpoint",
 			Req:  httptest.NewRequest("GET", "/nodes", nil),
 			Options: []fixtureopts{
 				wrapsHandler(server.Resource{}),
 			},
 			WantStatus: http.StatusNotFound,
+		},
+		{
+			Name: "returns 404 on unhandled create resource endpoint",
+			Req:  httptest.NewRequest("POST", "/nodes", nil),
+			Options: []fixtureopts{
+				wrapsHandler(server.Resource{}),
+			},
+			WantStatus: http.StatusNotFound,
+		},
+		{
+			Name: "returns 404 on unhandled get resource endpoint",
+			Req:  httptest.NewRequest("GET", "/nodes/42", nil),
+			Options: []fixtureopts{
+				wrapsHandler(server.Resource{}),
+			},
+			WantStatus: http.StatusNotFound,
+		},
+		{
+			Name: "returns 404 on unhandled update resource endpoint",
+			Req:  httptest.NewRequest("PATCH", "/nodes/42", nil),
+			Options: []fixtureopts{
+				wrapsHandler(server.Resource{}),
+			},
+			WantStatus: http.StatusNotFound,
+		},
+		{
+			Name: "returns 404 on unhandled delete resource endpoint",
+			Req:  httptest.NewRequest("DELETE", "/nodes/42", nil),
+			Options: []fixtureopts{
+				wrapsHandler(server.Resource{}),
+			},
+			WantStatus: http.StatusNotFound,
+		},
+		{
+			Name: "returns 404 on unhandled get ref endpoint",
+			Req:  httptest.NewRequest("GET", "/nodes/42/relationships/unknown", nil),
+			Options: []fixtureopts{
+				wrapsHandler(server.Relationship{}),
+			},
+			WantStatus: http.StatusNotFound,
+		},
+		{
+			Name: "returns 404 on unhandled update ref endpoint",
+			Req:  httptest.NewRequest("PATCH", "/nodes/42/relationships/children", nil),
+			Options: []fixtureopts{
+				wrapsHandler(server.Relationship{}),
+			},
+			WantStatus: http.StatusNotFound,
+		},
+		{
+			Name: "returns 404 on unhandled add ref endpoint",
+			Req:  httptest.NewRequest("POST", "/nodes/42/relationships/children", nil),
+			Options: []fixtureopts{
+				wrapsHandler(server.Relationship{}),
+			},
+			WantStatus: http.StatusNotFound,
+		},
+		{
+			Name: "returns 404 on unhandled remove ref endpoint",
+			Req:  httptest.NewRequest("DELETE", "/nodes/42/relationships/children", nil),
+			Options: []fixtureopts{
+				wrapsHandler(server.Relationship{}),
+			},
+			WantStatus: http.StatusNotFound,
+		},
+		{
+			Name: "returns 405 on invalid resource endpoint",
+			Req:  httptest.NewRequest("PUT", "/nodes/42", nil),
+			Options: []fixtureopts{
+				wrapsHandler(server.Resource{}),
+			},
+			WantStatus: http.StatusMethodNotAllowed,
+		},
+		{
+			Name: "returns 405 on invalid collection endpoint",
+			Req:  httptest.NewRequest("PUT", "/nodes", nil),
+			Options: []fixtureopts{
+				wrapsHandler(server.Resource{}),
+			},
+			WantStatus: http.StatusMethodNotAllowed,
+		},
+		{
+			Name: "returns 405 on invalid ref endpoint",
+			Req:  httptest.NewRequest("PUT", "/nodes/42/relationships/children", nil),
+			Options: []fixtureopts{
+				wrapsHandler(server.Relationship{}),
+			},
+			WantStatus: http.StatusMethodNotAllowed,
 		},
 	}...)
 }

@@ -1,18 +1,11 @@
 package server
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gonobo/jsonapi"
-)
-
-type ctxkey string
-
-const (
-	ctxKeyResourceMux ctxkey = "resourceMuxCtxKey"
 )
 
 var (
@@ -66,28 +59,15 @@ func Handle(handler http.Handler, options ...Options) Handler {
 }
 
 // ResourceMux is similar to [http.ServeMux], but instead of routing requests directly from URL patterns,
-// routes are resolved by JSON:API resource type. Add resource handlers
-// via the ResourceMux's HandleResource() method. When an incoming request
+// routes are determined by JSON:API context resource type. Add resource handlers explicitly or
+// via the ResourceMux's Handle() method. When an incoming request
 // is received, and the JSON:API request context is resolved, the handler that resolves
-// the request will be determined by the request context's resource type.
+// the request will be determined by the request context's resource type. Undefined
+// resource requests will return 404 responses.
 //
 // ResourceMux must have be wrapped by or have a parent handler wrapped by [Handle]
 // to provide JSON:API request context.
 type ResourceMux map[string]http.Handler
-
-// GetResourceMux returns the root resource mux stored within the request context.
-// If the mux is not found, GetResourceMux() panics.
-func GetResourceMux(r *http.Request) *ResourceMux {
-	value := r.Context().Value(ctxKeyResourceMux)
-	mux := value.(*ResourceMux)
-	return mux
-}
-
-// SetResourceMux sets the provided resource mux to the request context.
-func SetResourceMux(r *http.Request, m *ResourceMux) *http.Request {
-	ctx := context.WithValue(r.Context(), ctxKeyResourceMux, m)
-	return r.WithContext(ctx)
-}
 
 // Handle adds a request handler to the mux. All requests associated with the provided resource type will be
 // served by the provided handler.
@@ -105,12 +85,7 @@ func (m ResourceMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resource, ok := m[ctx.ResourceType]
-	if !ok {
-		serveNotFound(w)
-		return
-	}
-
-	resource.ServeHTTP(w, SetResourceMux(r, &m))
+	serveIfNotNil(w, r, resource, !ok)
 }
 
 // Resource is a collection of handlers for resource endpoints.
@@ -124,6 +99,9 @@ func (m ResourceMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 //
 // The handler members are optional. If the corresponding request
 // handler is nil, the request is rejected with a 404 Not Found response.
+//
+// If the request method does not conform to the JSON:API specification,
+// the request is rejected with a 405 Method Not Allowed response.
 type Resource struct {
 	Refs   http.Handler // Refs handles requests to resource relationships.
 	Create http.Handler // Create handles requests to create new resources.
@@ -163,54 +141,58 @@ func (h Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h Resource) serveCollection(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		if h.List != nil {
-			h.List.ServeHTTP(w, r)
-			return
-		}
+		serveIfNotNil(w, r, h.List, h.List == nil)
+		return
 	case http.MethodPost:
-		if h.Create != nil {
-			h.Create.ServeHTTP(w, r)
-			return
-		}
+		serveIfNotNil(w, r, h.Create, h.Create == nil)
+		return
 	}
 
-	// no matches, return 404
-	serveNotFound(w)
+	// no matches, return 405
+	methodNotAllowed(w)
 }
 
 // serveResource handles incoming JSON:API requests for individual resources.
 func (h Resource) serveResource(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		if h.Get != nil {
-			h.Get.ServeHTTP(w, r)
-			return
-		}
+		serveIfNotNil(w, r, h.Get, h.Get == nil)
+		return
 	case http.MethodPatch:
-		if h.Update != nil {
-			h.Update.ServeHTTP(w, r)
-			return
-		}
+		serveIfNotNil(w, r, h.Update, h.Update == nil)
+		return
 	case http.MethodDelete:
-		if h.Delete != nil {
-			h.Delete.ServeHTTP(w, r)
-			return
-		}
+		serveIfNotNil(w, r, h.Delete, h.Delete == nil)
+		return
 	}
 
-	// no matches, return 404
-	serveNotFound(w)
+	// no matches, return 405
+	methodNotAllowed(w)
 }
 
-// serveNotFound returns a 404 error.
-func serveNotFound(w http.ResponseWriter) {
+func serveIfNotNil(w http.ResponseWriter, r *http.Request, h http.Handler, isNil bool) {
+	if isNil {
+		notFound(w)
+		return
+	}
+	h.ServeHTTP(w, r)
+}
+
+// notFound returns a 404 error.
+func notFound(w http.ResponseWriter) {
 	Error(w, errNotFound, http.StatusNotFound)
+}
+
+func methodNotAllowed(w http.ResponseWriter) {
+	Error(w, errors.New("method not allowed"), http.StatusMethodNotAllowed)
 }
 
 // Relationship handlers route requests that correspond to a resource's relationships.
 // Supported requests include GetRef, UpdateRef, AddRef, and RemoveRef. If the request does
 // not match the JSON:API specifications for the above handlers, a 404 error is returned
-// to the client.
+// to the client
+//
+// Relationship instances can be used alone or as a handler to a [Resource] instance's Ref field.
 type Relationship struct {
 	GetRef    http.Handler // GetRef handles requests to fetch a specific resource relationship.
 	UpdateRef http.Handler // UpdateRef handles requests to update a specific resource relationship.
@@ -222,29 +204,21 @@ type Relationship struct {
 func (h Relationship) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		if h.GetRef != nil {
-			h.GetRef.ServeHTTP(w, r)
-			return
-		}
+		serveIfNotNil(w, r, h.GetRef, h.GetRef == nil)
+		return
 	case http.MethodPost:
-		if h.AddRef != nil {
-			h.AddRef.ServeHTTP(w, r)
-			return
-		}
+		serveIfNotNil(w, r, h.AddRef, h.AddRef == nil)
+		return
 	case http.MethodPatch:
-		if h.UpdateRef != nil {
-			h.UpdateRef.ServeHTTP(w, r)
-			return
-		}
+		serveIfNotNil(w, r, h.UpdateRef, h.UpdateRef == nil)
+		return
 	case http.MethodDelete:
-		if h.RemoveRef != nil {
-			h.RemoveRef.ServeHTTP(w, r)
-			return
-		}
+		serveIfNotNil(w, r, h.RemoveRef, h.RemoveRef == nil)
+		return
 	}
 
-	// no matches, return 404
-	serveNotFound(w)
+	// no matches, return 405
+	methodNotAllowed(w)
 }
 
 // RelationshipMux is a http handler multiplexer for a resource's relationships.
@@ -265,10 +239,5 @@ func (h RelationshipMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handler, ok := h[ctx.Relationship]
-	if !ok {
-		serveNotFound(w)
-		return
-	}
-
-	handler.ServeHTTP(w, r)
+	serveIfNotNil(w, r, handler, !ok)
 }

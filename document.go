@@ -180,7 +180,7 @@ func ResourceComparator[S ~[]T, T any](arr S, m map[string]Comparer[T]) Comparat
 		if !ok {
 			// attribute cannot be compared, assume a is less than b
 			// in this regard.
-			return -1
+			return i - j
 		}
 		a, b := arr[i], arr[j]
 		return compare(a, b)

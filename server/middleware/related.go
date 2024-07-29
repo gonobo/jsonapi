@@ -1,4 +1,4 @@
-package option
+package middleware
 
 import (
 	"fmt"
@@ -6,33 +6,13 @@ import (
 	"strings"
 
 	"github.com/gonobo/jsonapi"
-	"github.com/gonobo/jsonapi/srv"
-	"github.com/gonobo/jsonapi/srv/writeoption"
+	"github.com/gonobo/jsonapi/server"
 )
-
-const (
-	QueryParamInclude = "include"
-)
-
-// UseIncludeQueryParser is a middleware that parses the list of included
-// resources requested by the client and adds them to the JSON:API context.
-func UseIncludeQueryParser() srv.Options {
-	return srv.WithMiddleware(
-		func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				include := strings.Split(r.URL.Query().Get(QueryParamInclude), ",")
-				ctx, _ := jsonapi.GetContext(r.Context())
-				ctx.Include = include
-				next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))
-			})
-		},
-	)
-}
 
 // UseRelatedResourceResolver is a middleware that handles incoming requests
 // for related resources.
-func UseRelatedResourceResolver() srv.Options {
-	return srv.WithMiddleware(func(next http.Handler) http.Handler {
+func UseRelatedResourceResolver() server.Options {
+	return server.WithMiddleware(func(next http.Handler) http.Handler {
 		resolver := relatedResourceResolver{next}
 		return http.HandlerFunc(resolver.retrieveRelated)
 	})
@@ -44,8 +24,8 @@ func UseRelatedResourceResolver() srv.Options {
 //
 // UseIncludedResourceResolver currently supports inclusion requests only one level deep;
 // dot notation for multiple inclusions is not supported.
-func UseIncludedResourceResolver() srv.Options {
-	return srv.WithMiddleware(
+func UseIncludedResourceResolver() server.Options {
+	return server.WithMiddleware(
 		func(next http.Handler) http.Handler {
 			resolver := relatedResourceResolver{next}
 			return http.HandlerFunc(resolver.includeRelated)
@@ -69,7 +49,7 @@ func (rr relatedResourceResolver) includeRelated(w http.ResponseWriter, r *http.
 
 	// capture downstream response using a recorder
 
-	mem := srv.NewRecorder()
+	mem := server.NewRecorder()
 	rr.handler.ServeHTTP(mem, r)
 
 	// if the result is not OK, or if there is no data to parse,
@@ -95,7 +75,7 @@ func (rr relatedResourceResolver) includeRelated(w http.ResponseWriter, r *http.
 		// if an error is generated during fetch, halt and return the error
 		// back to the client.
 		if err := rr.fetchResourceRelationships(r, names, data, memo); err != nil {
-			srv.Error(w, fmt.Errorf("include resources: %w", err), http.StatusInternalServerError)
+			server.Error(w, fmt.Errorf("include resources: %w", err), http.StatusInternalServerError)
 			return
 		}
 	}
@@ -119,7 +99,7 @@ func (rr relatedResourceResolver) retrieveRelated(w http.ResponseWriter, r *http
 	// use a recorder to capture a downstream request to retrieve
 	// the parent resource.
 
-	mem := srv.NewRecorder()
+	mem := server.NewRecorder()
 	ctx = ctx.Child()
 	ctx.Related = false
 
@@ -146,7 +126,7 @@ func (rr relatedResourceResolver) retrieveRelated(w http.ResponseWriter, r *http
 
 	if err := rr.fetchResourceRelationships(r, names, data, memo); err != nil {
 		// if the request fails, return the error back to the client.
-		srv.Error(w, fmt.Errorf("related resources: %w", err), http.StatusInternalServerError)
+		server.Error(w, fmt.Errorf("related resources: %w", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -157,10 +137,10 @@ func (rr relatedResourceResolver) retrieveRelated(w http.ResponseWriter, r *http
 		items = append(items, item)
 	}
 
-	srv.Write(w, jsonapi.NewMultiDocument(items...),
+	server.Write(w, jsonapi.NewMultiDocument(items...),
 		http.StatusOK,
-		writeoption.WithSelfLink(r),
-		writeoption.WithMetaValue("count", len(items)),
+		server.WriteSelfLink(r),
+		server.WriteMeta("count", len(items)),
 	)
 }
 
@@ -211,7 +191,7 @@ func (rr relatedResourceResolver) fetchResourceRelationships(r *http.Request,
 			ctx.FetchIDs = append(ctx.FetchIDs, item.ID)
 		}
 
-		mem := srv.NewRecorder()
+		mem := server.NewRecorder()
 		rr.handler.ServeHTTP(mem, jsonapi.RequestWithContext(r, ctx))
 
 		if mem.Status != http.StatusOK {

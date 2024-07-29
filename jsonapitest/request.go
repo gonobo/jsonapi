@@ -11,7 +11,7 @@ import (
 // NewRequest creates a new http.Request using a jsonapi.Document as payload,
 // suitable for passing to an [http.Handler] for testing.
 //
-// Deprecated: Use httptest.NewRequest() directly, with jsonapitest.Document as a payload.
+// Deprecated: Use httptest.NewRequest() directly, with jsonapitest.Body as a payload.
 func NewRequest(method string, target string, doc jsonapi.Document) *http.Request {
 	return httptest.NewRequest(method, target, Body(doc))
 }

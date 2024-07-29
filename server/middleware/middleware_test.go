@@ -1,4 +1,4 @@
-package option_test
+package middleware_test
 
 import (
 	"io"
@@ -9,23 +9,23 @@ import (
 	"github.com/gonobo/jsonapi"
 	"github.com/gonobo/jsonapi/query"
 	"github.com/gonobo/jsonapi/query/pagination"
-	"github.com/gonobo/jsonapi/srv"
-	"github.com/gonobo/jsonapi/srv/option"
+	"github.com/gonobo/jsonapi/server"
+	"github.com/gonobo/jsonapi/server/middleware"
 	"github.com/stretchr/testify/assert"
 )
 
-type optionTestCase struct {
+type testcase struct {
 	name       string
-	options    []srv.Options
+	options    []server.Options
 	req        *http.Request
-	muxconfig  func(*testing.T, *srv.ResourceMux)
+	muxconfig  func(*testing.T, *server.ResourceMux)
 	wantStatus int
 	wantBody   string
 }
 
-func (tc optionTestCase) run(t *testing.T) {
+func (tc testcase) run(t *testing.T) {
 	t.Run(tc.name, func(t *testing.T) {
-		mux := srv.New(tc.options...)
+		mux := server.New(tc.options...)
 		tc.muxconfig(t, &mux)
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, tc.req)
@@ -43,13 +43,13 @@ func (tc optionTestCase) run(t *testing.T) {
 }
 
 func TestPageQueryParser(t *testing.T) {
-	for _, tc := range []optionTestCase{
+	for _, tc := range []testcase{
 		{
 			name: "parses page query params",
-			options: []srv.Options{
-				option.WithPaginationQueryParser(pagination.CursorNavigationParser{}),
+			options: []server.Options{
+				middleware.UsePaginationQueryParser(pagination.CursorNavigationParser{}),
 			},
-			muxconfig: func(t *testing.T, rm *srv.ResourceMux) {
+			muxconfig: func(t *testing.T, rm *server.ResourceMux) {
 				rm.HandleResource("things", http.HandlerFunc(
 					func(w http.ResponseWriter, r *http.Request) {
 						ctx, _ := jsonapi.GetContext(r.Context())
@@ -58,7 +58,7 @@ func TestPageQueryParser(t *testing.T) {
 							Limit:  100,
 						})
 						w.WriteHeader(http.StatusOK)
-						srv.Write(w, jsonapi.NewMultiDocument(), http.StatusOK)
+						server.Write(w, jsonapi.NewMultiDocument(), http.StatusOK)
 					}))
 			},
 			req:        httptest.NewRequest("GET", "https://example.com/things?page[cursor]=abc&page[limit]=100", nil),

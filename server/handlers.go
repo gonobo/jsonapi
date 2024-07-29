@@ -1,4 +1,4 @@
-package srv
+package server
 
 import (
 	"context"
@@ -129,7 +129,7 @@ func (m ResourceMux) ServeResourceHTTP(w http.ResponseWriter, r *http.Request) {
 // Each handler corresponds to a specific JSON:API resource operation,
 // such as Create, List, Get, Update, etc. The request type is determined
 // by the HTTP method and the JSON:API context. Resource instances
-// should be used in conjunction with srv.ServeMux, which resolves the
+// should be used in conjunction with server.ServeMux, which resolves the
 // JSON:API context before calling the ServeHTTP() method.
 //
 // The handlers are optional. If the corresponding request

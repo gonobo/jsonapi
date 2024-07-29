@@ -1,4 +1,4 @@
-package srv
+package server
 
 import (
 	"encoding/json"
@@ -63,6 +63,12 @@ func DefaultConfig() Config {
 		jsonapiMarshal:  jsonapi.Marshal,
 		jsonMarshal:     json.Marshal,
 		contextResolver: jsonapi.DefaultRequestContextResolver(),
+	}
+}
+
+func WithJSONMarshaler(marshal jsonMarshalFunc) WriteOptions {
+	return func(c *Config) {
+		c.jsonMarshal = marshal
 	}
 }
 

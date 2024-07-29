@@ -16,65 +16,73 @@ const (
 )
 
 var (
-	errMissingContext = errors.New("missing jsonapi context")
+	errNotFound       = errors.New("resource not found")
+	errMissingContext = errors.New("missing jsonapi context; did you wrap handler with server.Handle()?")
 )
 
 // Handler wraps an http handler, providing JSON:API context to downstream
 // consumers.
-type Handler struct {
-	resolver jsonapi.RequestContextResolver
-	handler  http.Handler
-}
-
-// ServeHTTP handles incoming http requests, and injects the JSON:API request context
-// into the http request instance.
-func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, err := h.resolver.ResolveContext(r)
-
-	if err != nil {
-		Error(w, fmt.Errorf("failed to resolve context: %w", err), http.StatusInternalServerError)
-		return
-	}
-
-	h.handler.ServeHTTP(w, jsonapi.RequestWithContext(r, &ctx))
-}
-
-// Handle returns a JSON:API handler, which wraps the provided http handler. The provided
-// resolver supplies the JSON:API request context, which is injected into the http request's
-// context when the handler is invoked. This context can then be retrieved downstream
-// via jsonapi.GetContext().
-func Handle(resolver jsonapi.RequestContextResolver, handler http.Handler) Handler {
-	return Handler{resolver, handler}
-}
-
-// ResourceMux is similar to http.ServeMux, but instead of routing requests from URL patterns,
-// routes are resolved by JSON:API resource type. Add resource handlers
-// via the ResourceMux's HandleResource() method. When an incoming request
-// is received, and the JSON:API request context is resolved, the handler that resolves
-// the request will be determined by the request context's resource type.
 //
-// ResourceMux implements http.Handler and can be
-// used directly with http.ListenAndServe() or any function that accepts
-// an http.Handler.
-type ResourceMux struct {
-	Config
-	handlers map[string]http.Handler
-}
-
-// New returns a newly initialized JSON:API server multiplexer.
-// By default, ServeMux determines context from the request url:
+// By default, Handler determines context from the request url:
 //
 //	":base/:type"                        // for resource type
 //	":base/:type/:id"                    // for resource type and resource id
 //	":base/:type/:id/relationships/:ref" // for resource type, id, and relationship name
 //	":base/:type/:id/:ref"               // for type, id, relationship, and if the request is for related resources.
 //
-// This and other behaviors can be modified via configuration options.
-func New(options ...Options) ResourceMux {
+// This behavior and others can be modified via configuration [Options].
+// Handler implements [http.Handler] and can be used anywhere http handlers are accepted.
+//
+// Handler zero values are not initialized; use the [Handle] function to create
+// a new instance.
+type Handler struct {
+	Config               // Configuration options for the handler.
+	wrapped http.Handler // The underlying http handler.
+}
+
+// ServeHTTP handles incoming http requests, and injects the JSON:API request context
+// into the http request instance.
+func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx, err := h.contextResolver.ResolveContext(r)
+
+	if err != nil {
+		Error(w, fmt.Errorf("failed to resolve context: %w", err), http.StatusInternalServerError)
+		return
+	}
+
+	h.wrapped.ServeHTTP(w, jsonapi.RequestWithContext(r, &ctx))
+}
+
+// Handle returns a [Handler], which wraps the provided http handler. The provided
+// resolver supplies the JSON:API request context, which is injected into the http request's
+// context when the handler is invoked. This context can then be retrieved downstream
+// via jsonapi.GetContext().
+func Handle(handler http.Handler, options ...Options) Handler {
 	cfg := DefaultConfig()
 	cfg.Apply(options...)
+
+	wrapped := cfg.applyMiddleware(handler)
+	return Handler{cfg, wrapped}
+}
+
+// ResourceMux is similar to [http.ServeMux], but instead of routing requests from URL patterns,
+// routes are resolved by JSON:API resource type. Add resource handlers
+// via the ResourceMux's HandleResource() method. When an incoming request
+// is received, and the JSON:API request context is resolved, the handler that resolves
+// the request will be determined by the request context's resource type.
+//
+// ResourceMux must have be wrapped or have a parent handler wrapped by [Handle]
+// to provide JSON:API request context.
+//
+// The zero value of ResourceMux is not initialized; use the [NewResourceMux] function
+// to create a new instance of ResourceMux.
+type ResourceMux struct {
+	handlers map[string]http.Handler
+}
+
+// NewResourceMux returns a newly initialized JSON:API resource multiplexer.
+func NewResourceMux(options ...Options) ResourceMux {
 	mux := ResourceMux{
-		Config:   cfg,
 		handlers: make(map[string]http.Handler),
 	}
 	return mux
@@ -100,39 +108,34 @@ func (m *ResourceMux) HandleResource(resource string, handler http.Handler) {
 	m.handlers[resource] = handler
 }
 
-// ServeHTTP is the main entry point for incoming http requests.
-func (m ResourceMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var handler http.Handler = http.HandlerFunc(m.ServeResourceHTTP)
-	handler = m.applyMiddleware(handler)
-	Handle(m.contextResolver, handler).ServeHTTP(w, SetResourceMux(r, &m))
-}
-
-// ServeResourceHTTP uses the embedded JSON:API request context to forward requests
+// ServeHTTP  uses the embedded JSON:API request context to forward requests
 // to their associated handler. If no handler is found, a 404 is returned to the client.
-// ServeResourceHTTP is exported for test scenarios; it should not be invoked directly by
-// library consumers.
-func (m ResourceMux) ServeResourceHTTP(w http.ResponseWriter, r *http.Request) {
+func (m ResourceMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, ok := jsonapi.GetContext(r.Context())
 	if !ok {
-		Error(w, errors.New("missing jsonapi context"), http.StatusInternalServerError)
+		Error(w, errMissingContext, http.StatusInternalServerError)
+		return
 	}
 
 	resource, ok := m.handlers[ctx.ResourceType]
 	if !ok {
-		Error(w, errors.New("resource not found"), http.StatusNotFound)
+		serveNotFound(w)
+		return
 	}
 
-	resource.ServeHTTP(w, r)
+	resource.ServeHTTP(w, SetResourceMux(r, &m))
 }
 
-// Resource is a collection of handlers for a single resource type.
+// Resource is a collection of handlers for resource endpoints.
 // Each handler corresponds to a specific JSON:API resource operation,
 // such as Create, List, Get, Update, etc. The request type is determined
 // by the HTTP method and the JSON:API context. Resource instances
-// should be used in conjunction with server.ServeMux, which resolves the
-// JSON:API context before calling the ServeHTTP() method.
+// are intended to be used in conjunction with [ResourceMux].
 //
-// The handlers are optional. If the corresponding request
+// Resource must be wrapped or have a parent handler wrapped by [Handle]
+// to provide JSON:API request context.
+//
+// The handler members are optional. If the corresponding request
 // handler is nil, the request is rejected with a 404 Not Found response.
 type Resource struct {
 	Relationship http.Handler // Relationship handles requests to resource relationships.
@@ -147,7 +150,8 @@ type Resource struct {
 func (h Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, ok := jsonapi.GetContext(r.Context())
 	if !ok {
-		Error(w, errors.New("missing jsonapi context"), http.StatusInternalServerError)
+		Error(w, errMissingContext, http.StatusInternalServerError)
+		return
 	}
 
 	// in order of specificity:
@@ -157,10 +161,12 @@ func (h Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if ctx.Relationship != "" && h.Relationship != nil {
 		h.Relationship.ServeHTTP(w, r)
+		return
 	}
 
 	if ctx.ResourceID != "" {
 		h.serveResource(w, r)
+		return
 	}
 
 	h.serveCollection(w, r)
@@ -211,7 +217,7 @@ func (h Resource) serveResource(w http.ResponseWriter, r *http.Request) {
 
 // serveNotFound returns a 404 error.
 func serveNotFound(w http.ResponseWriter) {
-	Error(w, errors.New("resource not found"), http.StatusNotFound)
+	Error(w, errNotFound, http.StatusNotFound)
 }
 
 // Relationship handlers route requests that correspond to a resource's relationships.

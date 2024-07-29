@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
 
 	"github.com/gonobo/jsonapi"
 )
@@ -52,9 +53,17 @@ func (c Config) applyDocumentOptions(w http.ResponseWriter, doc *jsonapi.Documen
 
 func (c Config) applyMiddleware(handler http.Handler) http.Handler {
 	h := handler
+
+	// reverse the list of middleware such that:
+	//   1) middleware declared first is applied first (farthest from handler)
+	//   2) middleware declared last is applied last (closest to handler)
+	// aka, FIFO order.
+	slices.Reverse(c.middlewares)
+
 	for _, mw := range c.middlewares {
 		h = mw(h)
 	}
+
 	return h
 }
 

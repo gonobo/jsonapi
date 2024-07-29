@@ -25,7 +25,7 @@ type testcase struct {
 
 func (tc testcase) run(t *testing.T) {
 	t.Run(tc.name, func(t *testing.T) {
-		mux := server.New(tc.options...)
+		mux := server.NewResourceMux(tc.options...)
 		tc.muxconfig(t, &mux)
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, tc.req)

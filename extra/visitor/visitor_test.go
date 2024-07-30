@@ -17,7 +17,7 @@ func TestVisitor(t *testing.T) {
 		wantErr  bool
 	}
 
-	partial := visitor.PartialVisitor{
+	partial := visitor.SectionVisitor{
 		Document: func(d *jsonapi.Document) error { return nil },
 	}
 

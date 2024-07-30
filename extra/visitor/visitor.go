@@ -68,11 +68,11 @@ type ErrorVisitor interface {
 // VisitorFunc can visit a node of the specified type.
 type VisitorFunc[Node any] func(Node) error
 
-// PartialVisitor can visit chosen nodes while ignoring others. For example,
+// SectionVisitor can visit chosen nodes while ignoring others. For example,
 // if you only want to visit the document node and its top links, you can use this to create
 // a visitor that only visits the document node. If you want to visit all link nodes, add
 // link visitor instead.
-type PartialVisitor struct {
+type SectionVisitor struct {
 	Document      VisitorFunc[*jsonapi.Document]         // Function for visiting document nodes.
 	Links         VisitorFunc[jsonapi.Links]             // Function for visiting links nodes.
 	Link          VisitorFunc[*jsonapi.Link]             // Function for visiting link nodes.
@@ -85,7 +85,7 @@ type PartialVisitor struct {
 }
 
 // Visitor creates a visitor instance that can traverse a document.
-func (v *PartialVisitor) Visitor() *Visitor {
+func (v *SectionVisitor) Visitor() *Visitor {
 	return &Visitor{
 		DocumentVisitor:     v,
 		LinksVisitor:        v,
@@ -97,47 +97,47 @@ func (v *PartialVisitor) Visitor() *Visitor {
 }
 
 // VisitDocument visits the document.
-func (v PartialVisitor) VisitDocument(obj *jsonapi.Document) error {
+func (v SectionVisitor) VisitDocument(obj *jsonapi.Document) error {
 	return visitNode(obj, v.Document, v.Document == nil)
 }
 
 // VisitLink visits a link.
-func (v PartialVisitor) VisitLink(obj *jsonapi.Link) error {
+func (v SectionVisitor) VisitLink(obj *jsonapi.Link) error {
 	return visitNode(obj, v.Link, v.Link == nil)
 }
 
 // VisitLinks visits the links.
-func (v PartialVisitor) VisitLinks(obj jsonapi.Links) error {
+func (v SectionVisitor) VisitLinks(obj jsonapi.Links) error {
 	return visitNode(obj, v.Links, v.Links == nil)
 }
 
 // VisitMeta visits the meta node.
-func (v PartialVisitor) VisitMeta(obj jsonapi.Meta) error {
+func (v SectionVisitor) VisitMeta(obj jsonapi.Meta) error {
 	return visitNode(obj, v.Meta, v.Meta == nil)
 }
 
 // VisitResource visits the resource node.
-func (v PartialVisitor) VisitResource(obj *jsonapi.Resource) error {
+func (v SectionVisitor) VisitResource(obj *jsonapi.Resource) error {
 	return visitNode(obj, v.Resource, v.Resource == nil)
 }
 
 // VisitRelationship visits the relationship node.
-func (v PartialVisitor) VisitRelationship(obj *jsonapi.Relationship) error {
+func (v SectionVisitor) VisitRelationship(obj *jsonapi.Relationship) error {
 	return visitNode(obj, v.Relationship, v.Relationship == nil)
 }
 
 // VisitRelationships visits the relationships node.
-func (v PartialVisitor) VisitRelationships(obj jsonapi.RelationshipsNode) error {
+func (v SectionVisitor) VisitRelationships(obj jsonapi.RelationshipsNode) error {
 	return visitNode(obj, v.Relationships, v.Relationships == nil)
 }
 
 // VisitRef visits the resource node referenced in a relationship.
-func (v PartialVisitor) VisitRef(obj *jsonapi.Resource) error {
+func (v SectionVisitor) VisitRef(obj *jsonapi.Resource) error {
 	return visitNode(obj, v.Ref, v.Ref == nil)
 }
 
 // VisitError visits the error node.
-func (v PartialVisitor) VisitError(obj *jsonapi.Error) error {
+func (v SectionVisitor) VisitError(obj *jsonapi.Error) error {
 	return visitNode(obj, v.Error, v.Error == nil)
 }
 

@@ -226,7 +226,7 @@ func WriteResourceLinks(baseURL string, resolver jsonapi.URLResolver) WriteOptio
 	const keyParentID = "$__parentid"
 	const keyRelName = "$__relname"
 
-	v := visitor.PartialVisitor{
+	v := visitor.SectionVisitor{
 		Resource: func(r *jsonapi.Resource) error {
 			self := resolver.ResolveURL(jsonapi.RequestContext{
 				ResourceType: r.Type,
@@ -289,7 +289,7 @@ func WriteResourceLinks(baseURL string, resolver jsonapi.URLResolver) WriteOptio
 
 // writeWithDocumentVisitor applies the visitor to the response document. Visitors can traverse and modify
 // a document's nodes.
-func writeWithDocumentVisitor(v visitor.PartialVisitor) WriteOptions {
+func writeWithDocumentVisitor(v visitor.SectionVisitor) WriteOptions {
 	return WithDocumentOptions(func(w http.ResponseWriter, d *jsonapi.Document) error {
 		return visitor.VisitDocument(v.Visitor(), d)
 	})

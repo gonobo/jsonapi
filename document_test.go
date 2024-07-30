@@ -78,17 +78,12 @@ func TestFirst(t *testing.T) {
 		doc := jsonapi.Document{Data: tc.data}
 		if tc.wantPanic {
 			assert.Panics(t, func() {
-				jsonapi.First(doc.Data) // TODO: deprecate
 				doc.Data.First()
 			})
 			return
 		}
 
 		got := doc.Data.First()
-		assert.EqualValues(t, tc.want, got)
-
-		// TODO: deprecate
-		got = jsonapi.First(doc.Data)
 		assert.EqualValues(t, tc.want, got)
 	}
 }

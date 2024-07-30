@@ -6,11 +6,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gonobo/jsonapi"
-	"github.com/gonobo/jsonapi/query"
-	"github.com/gonobo/jsonapi/query/pagination"
-	"github.com/gonobo/jsonapi/server"
-	"github.com/gonobo/jsonapi/server/middleware"
+	"github.com/gonobo/jsonapi/v1"
+	"github.com/gonobo/jsonapi/v1/query"
+	"github.com/gonobo/jsonapi/v1/query/pagination"
+	"github.com/gonobo/jsonapi/v1/server"
+	"github.com/gonobo/jsonapi/v1/server/middleware"
 	"github.com/stretchr/testify/assert"
 )
 

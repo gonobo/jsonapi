@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/gonobo/jsonapi"
+	"github.com/gonobo/jsonapi/v1"
 )
 
 type Config struct {

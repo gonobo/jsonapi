@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gonobo/jsonapi/query"
+	"github.com/gonobo/jsonapi/v1/query"
 )
 
 func BuildQuery(expression query.FilterExpression) (map[string]string, error) {

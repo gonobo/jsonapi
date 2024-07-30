@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gonobo/jsonapi/query"
+	"github.com/gonobo/jsonapi/v1/query"
 )
 
 // RequestQueryParser parses the JSON:API sort query parameters of an http request.

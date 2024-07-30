@@ -8,9 +8,9 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/gonobo/jsonapi"
-	"github.com/gonobo/jsonapi/extra/visitor"
-	"github.com/gonobo/jsonapi/query"
+	"github.com/gonobo/jsonapi/v1"
+	"github.com/gonobo/jsonapi/v1/extra/visitor"
+	"github.com/gonobo/jsonapi/v1/query"
 )
 
 const (

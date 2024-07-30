@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gonobo/jsonapi"
-	"github.com/gonobo/jsonapi/server"
+	"github.com/gonobo/jsonapi/v1"
+	"github.com/gonobo/jsonapi/v1/server"
 )
 
 // UseRelatedResourceResolver is a middleware that handles incoming requests

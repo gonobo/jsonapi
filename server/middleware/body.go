@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/gonobo/jsonapi"
-	"github.com/gonobo/jsonapi/server"
+	"github.com/gonobo/jsonapi/v1"
+	"github.com/gonobo/jsonapi/v1/server"
 )
 
 func UseRequestBodyParser() server.Options {

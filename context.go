@@ -3,7 +3,7 @@ package jsonapi
 import (
 	"context"
 
-	"github.com/gonobo/jsonapi/query"
+	"github.com/gonobo/jsonapi/v1/query"
 )
 
 // RequestContext contains information about the JSON:API request that defines it.

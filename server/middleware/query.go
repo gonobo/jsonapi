@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gonobo/jsonapi"
-	"github.com/gonobo/jsonapi/query"
-	"github.com/gonobo/jsonapi/server"
+	"github.com/gonobo/jsonapi/v1"
+	"github.com/gonobo/jsonapi/v1/query"
+	"github.com/gonobo/jsonapi/v1/server"
 )
 
 // FieldsetQueryParser is a function that parses the fieldset query parameters.

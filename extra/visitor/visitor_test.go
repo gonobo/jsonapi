@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/gonobo/jsonapi"
-	"github.com/gonobo/jsonapi/extra/visitor"
-	"github.com/gonobo/jsonapi/jsonapitest"
+	"github.com/gonobo/jsonapi/v1"
+	"github.com/gonobo/jsonapi/v1/extra/visitor"
+	"github.com/gonobo/jsonapi/v1/jsonapitest"
 	"github.com/stretchr/testify/assert"
 )
 

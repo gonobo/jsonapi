@@ -3,7 +3,7 @@ package filter
 import (
 	"fmt"
 
-	"github.com/gonobo/jsonapi/query"
+	"github.com/gonobo/jsonapi/v1/query"
 )
 
 type TransformerMux struct {

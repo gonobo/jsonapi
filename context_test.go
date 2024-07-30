@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/gonobo/jsonapi"
+	"github.com/gonobo/jsonapi/v1"
 	"github.com/stretchr/testify/assert"
 )
 

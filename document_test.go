@@ -2,6 +2,7 @@ package jsonapi_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http/httptest"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/gonobo/jsonapi"
+	"github.com/gonobo/jsonapi/extra/spec"
+	"github.com/gonobo/jsonapi/jsonapitest"
 	"github.com/gonobo/jsonapi/query"
 	"github.com/stretchr/testify/assert"
 )
@@ -177,14 +180,6 @@ func TestDocumentMarshalJSON(t *testing.T) {
 		})
 	})
 
-	t.Run("empty document with specification validation", func(t *testing.T) {
-		runMarshalJSONTest(t, tc{
-			in:            jsonapi.Document{ValidateOnMarshal: true},
-			wantErr:       true,
-			skipUnmarshal: true,
-		})
-	})
-
 	t.Run("document with meta", func(t *testing.T) {
 		runMarshalJSONTest(t, tc{
 			in: jsonapi.Document{
@@ -204,7 +199,7 @@ func TestDocumentMarshalJSON(t *testing.T) {
 				Jsonapi: jsonapi.JSONAPI{Version: "1.1"},
 				Meta:    jsonapi.Meta{"test": true},
 				Extensions: map[string]*json.RawMessage{
-					"foo:version": MarshalRaw(t, "2"),
+					"foo:version": jsonapitest.MarshalRaw(t, "2"),
 				},
 			},
 			wantJSON: `{
@@ -637,5 +632,26 @@ func TestWrite(t *testing.T) {
 		err := jsonapi.Encode(recorder, &doc)
 		assert.NoError(t, err)
 		assert.JSONEq(t, `{"jsonapi":{"version": "1.1"}, "meta":{"foo":"bar"}}`, string(recorder.Body.String()))
+	})
+}
+
+func TestError(t *testing.T) {
+	err := jsonapi.NewError(errors.New("new error"), "title")
+	assert.Error(t, err)
+	assert.Equal(t, "title", err.Title)
+	assert.Equal(t, "new error", err.Detail)
+
+	wrapped := fmt.Errorf("wrapped error: %w", err)
+	var as jsonapi.Error
+	assert.True(t, errors.As(wrapped, &as))
+}
+
+func TestValidation(t *testing.T) {
+	t.Run("using specification validation", func(t *testing.T) {
+		doc := jsonapi.Document{}
+		assert.Error(t, doc.Validate(spec.Validator{}), "should raise an error on empty document")
+
+		doc.Jsonapi.Version = jsonapi.Version("0.0")
+		assert.NoError(t, doc.Validate(spec.Validator{}), "unknown version has no validation")
 	})
 }

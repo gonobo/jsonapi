@@ -32,14 +32,14 @@ func TestContext(t *testing.T) {
 	})
 
 	t.Run("get context", func(t *testing.T) {
-		ctx, ok := jsonapi.GetContext(context.TODO())
+		ctx, ok := jsonapi.Context(context.TODO())
 		assert.Nil(t, ctx)
 		assert.False(t, ok)
 	})
 
 	t.Run("set context", func(t *testing.T) {
-		ctx := jsonapi.SetContext(context.Background(), &jsonapi.RequestContext{})
-		jsonapictx, ok := jsonapi.GetContext(ctx)
+		ctx := jsonapi.ContextWithValue(context.Background(), &jsonapi.RequestContext{})
+		jsonapictx, ok := jsonapi.Context(ctx)
 		assert.True(t, ok)
 		assert.NotNil(t, jsonapictx)
 	})

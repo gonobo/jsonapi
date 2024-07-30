@@ -57,7 +57,7 @@ func TestURLResolver(t *testing.T) {
 func TestContextResolver(t *testing.T) {
 	type testcase struct {
 		name     string
-		resolver jsonapi.RequestContextResolver
+		resolver jsonapi.ContextResolver
 		url      string
 		want     jsonapi.RequestContext
 		wantErr  bool
@@ -66,43 +66,43 @@ func TestContextResolver(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name:     "default empty path",
-			resolver: jsonapi.DefaultRequestContextResolver(),
+			resolver: jsonapi.DefaultContextResolver(),
 			url:      "/",
 			wantErr:  true,
 		},
 		{
 			name:     "default empty path",
-			resolver: jsonapi.DefaultRequestContextResolver(),
+			resolver: jsonapi.DefaultContextResolver(),
 			url:      "",
 			wantErr:  true,
 		},
 		{
 			name:     "default resource collection",
-			resolver: jsonapi.DefaultRequestContextResolver(),
+			resolver: jsonapi.DefaultContextResolver(),
 			url:      "/items",
 			want:     jsonapi.RequestContext{ResourceType: "items"},
 		},
 		{
 			name:     "default resource",
-			resolver: jsonapi.DefaultRequestContextResolver(),
+			resolver: jsonapi.DefaultContextResolver(),
 			url:      "/items/1",
 			want:     jsonapi.RequestContext{ResourceType: "items", ResourceID: "1"},
 		},
 		{
 			name:     "default resource relationship",
-			resolver: jsonapi.DefaultRequestContextResolver(),
+			resolver: jsonapi.DefaultContextResolver(),
 			url:      "/items/1/relationships/foo",
 			want:     jsonapi.RequestContext{ResourceType: "items", ResourceID: "1", Relationship: "foo"},
 		},
 		{
 			name:     "default related resource",
-			resolver: jsonapi.DefaultRequestContextResolver(),
+			resolver: jsonapi.DefaultContextResolver(),
 			url:      "/items/1/foo",
 			want:     jsonapi.RequestContext{ResourceType: "items", ResourceID: "1", Relationship: "foo", Related: true},
 		},
 		{
 			name:     "default resource relationship with absolute url",
-			resolver: jsonapi.DefaultRequestContextResolver(),
+			resolver: jsonapi.DefaultContextResolver(),
 			url:      "http://api.foo.com/items/1/relationships/foo",
 			want:     jsonapi.RequestContext{ResourceType: "items", ResourceID: "1", Relationship: "foo"},
 		},
@@ -118,7 +118,7 @@ func TestContextResolver(t *testing.T) {
 				return
 			}
 			assert.NoError(t, err)
-			assert.EqualValues(t, tc.want, got)
+			assert.EqualValues(t, &tc.want, got)
 		})
 	}
 }

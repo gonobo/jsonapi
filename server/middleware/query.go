@@ -27,7 +27,7 @@ func UseFieldsetQueryParser(parser FieldsetQueryParser) server.Options {
 				return
 			}
 
-			ctx, _ := jsonapi.GetContext(r.Context())
+			ctx, _ := jsonapi.Context(r.Context())
 			ctx.Fields = fields
 			next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))
 		})
@@ -52,7 +52,7 @@ func UsePaginationQueryParser(parser PageQueryParser) server.Options {
 				return
 			}
 
-			ctx, _ := jsonapi.GetContext(r.Context())
+			ctx, _ := jsonapi.Context(r.Context())
 			ctx.Pagination = page
 
 			next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))
@@ -79,7 +79,7 @@ func UseFilterQueryParser(parser FilterQueryParser) server.Options {
 				return
 			}
 
-			ctx, _ := jsonapi.GetContext(r.Context())
+			ctx, _ := jsonapi.Context(r.Context())
 			ctx.Filter = filter
 			next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))
 		})
@@ -104,7 +104,7 @@ func UseSortQueryParser(parser SortQueryParser) server.Options {
 				return
 			}
 
-			ctx, _ := jsonapi.GetContext(r.Context())
+			ctx, _ := jsonapi.Context(r.Context())
 			ctx.Sort = sort
 
 			next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))
@@ -118,7 +118,7 @@ func UseIncludeQueryParser() server.Options {
 	return server.WithMiddleware(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			include := strings.Split(r.URL.Query().Get(query.ParamInclude), ",")
-			ctx, _ := jsonapi.GetContext(r.Context())
+			ctx, _ := jsonapi.Context(r.Context())
 			ctx.Include = include
 			next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))
 		})

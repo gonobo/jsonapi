@@ -53,7 +53,7 @@ func TestPageQueryParser(t *testing.T) {
 			muxconfig: func(t *testing.T, rm *server.ResourceMux) {
 				rm.Handle("things", http.HandlerFunc(
 					func(w http.ResponseWriter, r *http.Request) {
-						ctx, _ := jsonapi.GetContext(r.Context())
+						ctx, _ := jsonapi.Context(r.Context())
 						assert.EqualValues(t, ctx.Pagination, query.Page{
 							Cursor: "abc",
 							Limit:  100,

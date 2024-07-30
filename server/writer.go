@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/gonobo/jsonapi"
+	"github.com/gonobo/jsonapi/extra/visitor"
 	"github.com/gonobo/jsonapi/query"
 )
 
@@ -225,7 +226,7 @@ func WriteResourceLinks(baseURL string, resolver jsonapi.URLResolver) WriteOptio
 	const keyParentID = "$__parentid"
 	const keyRelName = "$__relname"
 
-	visitor := jsonapi.PartialVisitor{
+	v := visitor.PartialVisitor{
 		Resource: func(r *jsonapi.Resource) error {
 			self := resolver.ResolveURL(jsonapi.RequestContext{
 				ResourceType: r.Type,
@@ -283,14 +284,14 @@ func WriteResourceLinks(baseURL string, resolver jsonapi.URLResolver) WriteOptio
 		},
 	}
 
-	return writeWithDocumentVisitor(visitor)
+	return writeWithDocumentVisitor(v)
 }
 
 // writeWithDocumentVisitor applies the visitor to the response document. Visitors can traverse and modify
 // a document's nodes.
-func writeWithDocumentVisitor(visitor jsonapi.PartialVisitor) WriteOptions {
+func writeWithDocumentVisitor(v visitor.PartialVisitor) WriteOptions {
 	return WithDocumentOptions(func(w http.ResponseWriter, d *jsonapi.Document) error {
-		return d.ApplyVisitor(visitor.Visitor())
+		return visitor.VisitDocument(v.Visitor(), d)
 	})
 }
 

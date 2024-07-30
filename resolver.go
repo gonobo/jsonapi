@@ -57,8 +57,8 @@ func DefaultURLResolver() URLResolverFunc {
 	}
 }
 
-// RequestContextResolver resolves JSON:API context information from an incoming http request.
-type RequestContextResolver interface {
+// ContextResolver resolves JSON:API context information from an incoming http request.
+type ContextResolver interface {
 	// ResolveContext resolves the JSON:API context from the provided http request.
 	// The context informs downstream dependencies; at minimum, the context should
 	// populate the following fields (if applicable):
@@ -66,35 +66,35 @@ type RequestContextResolver interface {
 	//	- ResourceID (the unique identifier of the resource being requested)
 	//	- Relationship (the relationship being requested)
 	//	- Related (whether the relationship is a related resource)
-	ResolveContext(*http.Request) (RequestContext, error)
+	ResolveContext(*http.Request) (*RequestContext, error)
 }
 
-// RequestContextResolverFunc functions implement ContextResolver.
-type RequestContextResolverFunc func(*http.Request) (RequestContext, error)
+// ContextResolverFunc functions implement ContextResolver.
+type ContextResolverFunc func(*http.Request) (*RequestContext, error)
 
 // ResolveContext resolves the JSON:API context from the provided http request.
-func (fn RequestContextResolverFunc) ResolveContext(r *http.Request) (RequestContext, error) {
+func (fn ContextResolverFunc) ResolveContext(r *http.Request) (*RequestContext, error) {
 	return fn(r)
 }
 
-// DefaultRequestContextResolver returns a resolver that populates a JSON:API context
+// DefaultContextResolver returns a resolver that populates a JSON:API context
 // based on the URL path examples given by the JSON:API specification:
 //
 //	"/:type"                         // ResourceType
 //	"/:type/:id"                     // ResourceType, ResourceID
 //	"/:type/:id/relationships/:ref"  // ResourceType, ResourceID, Relationship
 //	"/:type/:id/:ref"                // ResourceType, ResourceID, Relationship, Related
-func DefaultRequestContextResolver() RequestContextResolverFunc {
-	return func(r *http.Request) (RequestContext, error) {
+func DefaultContextResolver() ContextResolverFunc {
+	return func(r *http.Request) (*RequestContext, error) {
 		// remove the leading slash from the path so we can count segments
 		urlPath := strings.TrimLeft(r.URL.Path, "/")
 		segments := strings.Split(urlPath, "/")
 
-		var ctx RequestContext
-
 		if urlPath == "" {
-			return ctx, jsonapiError("empty path")
+			return nil, jsonapiError("empty path")
 		}
+
+		var ctx RequestContext
 
 		if ok, _ := path.Match("*/*/relationships/*", urlPath); ok {
 			// :type/:id/relationships/:relationship
@@ -114,6 +114,6 @@ func DefaultRequestContextResolver() RequestContextResolverFunc {
 		}
 
 		ctx.ResourceType = segments[0]
-		return ctx, nil
+		return &ctx, nil
 	}
 }

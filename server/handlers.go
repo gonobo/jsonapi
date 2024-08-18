@@ -78,7 +78,7 @@ func (m ResourceMux) Handle(resource string, handler http.Handler) {
 // ServeHTTP uses the embedded JSON:API request context to forward requests
 // to their associated handler. If no handler is found, a 404 is returned to the client.
 func (m ResourceMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, ok := jsonapi.Context(r.Context())
+	ctx, ok := jsonapi.FromContext(r.Context())
 	if !ok {
 		Error(w, errMissingContext, http.StatusInternalServerError)
 		return
@@ -113,7 +113,7 @@ type Resource struct {
 
 // ServeHTTP routes incoming JSON:API requests to the appropriate resource operation.
 func (h Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, ok := jsonapi.Context(r.Context())
+	ctx, ok := jsonapi.FromContext(r.Context())
 	if !ok {
 		Error(w, errMissingContext, http.StatusInternalServerError)
 		return
@@ -232,7 +232,7 @@ type RelationshipMux map[string]http.Handler
 
 // ServeHTTP handles incoming JSON:API requests for resource relationships.
 func (h RelationshipMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, ok := jsonapi.Context(r.Context())
+	ctx, ok := jsonapi.FromContext(r.Context())
 	if !ok {
 		Error(w, errMissingContext, http.StatusInternalServerError)
 		return

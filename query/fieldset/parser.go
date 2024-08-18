@@ -7,6 +7,8 @@ import (
 	"github.com/gonobo/jsonapi/v1/query"
 )
 
+var DefaultParser = Parser{}
+
 type Parser struct{}
 
 func (p Parser) ParseFieldsetQuery(r *http.Request) ([]query.Fieldset, error) {

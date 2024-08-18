@@ -226,6 +226,6 @@ func Do(c Client, options ...func(*http.Request)) (*http.Response, error) {
 
 // RequestWithContext sets the request context on the provided request.
 func RequestWithContext(r *http.Request, c *RequestContext) *http.Request {
-	ctx := ContextWithValue(r.Context(), c)
+	ctx := WithContext(r.Context(), c)
 	return r.WithContext(ctx)
 }

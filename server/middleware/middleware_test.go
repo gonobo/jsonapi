@@ -8,7 +8,7 @@ import (
 
 	"github.com/gonobo/jsonapi/v1"
 	"github.com/gonobo/jsonapi/v1/query"
-	"github.com/gonobo/jsonapi/v1/query/pagination"
+	"github.com/gonobo/jsonapi/v1/query/page"
 	"github.com/gonobo/jsonapi/v1/server"
 	"github.com/gonobo/jsonapi/v1/server/middleware"
 	"github.com/stretchr/testify/assert"
@@ -48,12 +48,12 @@ func TestPageQueryParser(t *testing.T) {
 		{
 			name: "parses page query params",
 			options: []server.Options{
-				middleware.UsePaginationQueryParser(pagination.CursorNavigationParser{}),
+				middleware.UsePaginationQueryParser(page.CursorNavigationParser{}),
 			},
 			muxconfig: func(t *testing.T, rm *server.ResourceMux) {
 				rm.Handle("things", http.HandlerFunc(
 					func(w http.ResponseWriter, r *http.Request) {
-						ctx, _ := jsonapi.Context(r.Context())
+						ctx, _ := jsonapi.FromContext(r.Context())
 						assert.EqualValues(t, ctx.Pagination, query.Page{
 							Cursor: "abc",
 							Limit:  100,

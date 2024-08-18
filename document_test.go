@@ -624,7 +624,7 @@ func TestWrite(t *testing.T) {
 	t.Run("writes to response writer", func(t *testing.T) {
 		recorder := httptest.NewRecorder()
 		doc := jsonapi.Document{Meta: map[string]any{"foo": "bar"}}
-		err := jsonapi.Encode(recorder, &doc)
+		err := jsonapi.Encode(recorder, doc)
 		assert.NoError(t, err)
 		assert.JSONEq(t, `{"jsonapi":{"version": "1.1"}, "meta":{"foo":"bar"}}`, string(recorder.Body.String()))
 	})

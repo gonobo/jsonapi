@@ -52,7 +52,7 @@ func Decode(r io.Reader, doc *Document) error {
 }
 
 // Encode writes the JSON encoding of v to the stream, followed by a newline character.
-func Encode(w io.Writer, doc *Document) error {
+func Encode(w io.Writer, doc Document) error {
 	return json.NewEncoder(w).Encode(doc)
 }
 

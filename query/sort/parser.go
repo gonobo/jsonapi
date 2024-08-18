@@ -7,6 +7,8 @@ import (
 	"github.com/gonobo/jsonapi/v1/query"
 )
 
+var DefaultParser = RequestQueryParser{}
+
 // RequestQueryParser parses the JSON:API sort query parameters of an http request.
 type RequestQueryParser struct{}
 

@@ -44,7 +44,7 @@ func (e *Evaluator) EvaluateOrFilter(expr *query.OrFilter) error {
 func (e *Evaluator) EvaluateNotFilter(expr *query.NotFilter) error {
 	var value Evaluator
 
-	err := query.EvaluateFilter(&value, expr.Value)
+	err := query.EvaluateFilter(&value, expr.Expression)
 	e.Got = fmt.Sprintf("NOT %s", value.Got)
 	return err
 }
@@ -97,7 +97,7 @@ func TestEvaluate(t *testing.T) {
 				Right: &query.OrFilter{
 					Left: &query.Filter{Name: "p2"},
 					Right: &query.NotFilter{
-						Value: &query.Filter{Name: "p3"},
+						Expression: &query.Filter{Name: "p3"},
 					},
 				},
 			},

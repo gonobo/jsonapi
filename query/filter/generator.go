@@ -75,8 +75,15 @@ func (g *urlQueryGenerator) EvaluateOrFilter(e *query.OrFilter) error {
 	return errors.Join(lefterr, righterr)
 }
 
-func (urlQueryGenerator) EvaluateNotFilter(e *query.NotFilter) error {
-	return errors.ErrUnsupported
+func (g *urlQueryGenerator) EvaluateNotFilter(e *query.NotFilter) error {
+	expr := &urlQueryGenerator{
+		counter: new(counter),
+		query:   g.query,
+	}
+
+	err := query.EvaluateFilter(expr, e.Expression)
+	g.expr = fmt.Sprintf("not %s", expr.expr)
+	return err
 }
 
 func (urlQueryGenerator) EvaluateCustomFilter(e any) error {

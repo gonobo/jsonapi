@@ -33,7 +33,7 @@ type Parser struct {
 	Transformer Transformer
 }
 
-func (Parser) ParseFilter(r *http.Request) (query.FilterExpression, error) {
+func (Parser) ParseFilterQuery(r *http.Request) (query.FilterExpression, error) {
 	return ParseWithTransform(r.URL.Query(), PassthroughTransformer)
 }
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gonobo/jsonapi/v1/query"
+	"github.com/gonobo/jsonapi/v2/query"
 	"github.com/stretchr/testify/assert"
 )
 

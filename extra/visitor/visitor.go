@@ -3,7 +3,7 @@ package visitor
 import (
 	"errors"
 
-	"github.com/gonobo/jsonapi/v1"
+	"github.com/gonobo/jsonapi/v2"
 )
 
 // Visitor can traverse a JSON:API document tree. Use the subvisitors to

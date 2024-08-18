@@ -1,19 +1,19 @@
 # jsonapi
 
 [![Test](https://github.com/nisimpson/gibbon/actions/workflows/jsonapi-test.yml/badge.svg)](https://github.com/nisimpson/gibbon/actions/workflows/jsonapi-test.yml)
-[![GoDoc](https://godoc.org/github.com/gonobo/jsonapi/v1?status.svg)](http://godoc.org/github.com/gonobo/jsonapi/v1)
+[![GoDoc](https://godoc.org/github.com/gonobo/jsonapi/v2?status.svg)](http://godoc.org/github.com/gonobo/jsonapi/v2)
 [![Release](https://img.shields.io/github/release/gonobo/jsonapi.svg)](https://github.com/gonobo/releases)
 
 **Yet Another JSON API library for Go.**
 
-Package [`jsonapi`](http://godoc.org/github.com/gonobo/jsonapi/v1) provides structures and functions to implement [JSON API](http://jsonapi.org) compatible APIs. The library can be used with any framework and is built on top of the standard Go http library.
+Package [`jsonapi`](http://godoc.org/github.com/gonobo/jsonapi/v2) provides structures and functions to implement [JSON API](http://jsonapi.org) compatible APIs. The library can be used with any framework and is built on top of the standard Go http library.
 
 ## Installation
 
 Get the package using the go tool:
 
 ```bash
-$ go get -u github.com/gonobo/jsonapi/v1
+$ go get -u github.com/gonobo/jsonapi/v2
 ```
 
 ## Structures
@@ -138,7 +138,7 @@ to-many from being serialized.
 > unmarshal is undefined behavior.
 
 ```go
-import "github.com/gonobo/jsonapi/v1"
+import "github.com/gonobo/jsonapi/v2"
 
 func createOrder(w *http.ResponseWriter, r *http.Request) {
   in, err := jsonapi.Decode(r.Body)
@@ -159,8 +159,8 @@ JSON:API specification.
 
 ```go
 import (
-  "github.com/gonobo/jsonapi/v1"
-  "github.com/gonobo/jsonapi/v1/mux"
+  "github.com/gonobo/jsonapi/v2"
+  "github.com/gonobo/jsonapi/v2/mux"
 )
 
 func getOrder(r *http.Request) jsonapi.Response {

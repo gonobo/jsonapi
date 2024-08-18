@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gonobo/jsonapi/v1/jsonapitest"
+	"github.com/gonobo/jsonapi/v2/jsonapitest"
 	"github.com/stretchr/testify/assert"
 )
 

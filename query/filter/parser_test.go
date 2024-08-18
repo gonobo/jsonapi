@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/gonobo/jsonapi/v1/query"
-	"github.com/gonobo/jsonapi/v1/query/filter"
+	"github.com/gonobo/jsonapi/v2/query"
+	"github.com/gonobo/jsonapi/v2/query/filter"
 	"github.com/stretchr/testify/assert"
 )
 

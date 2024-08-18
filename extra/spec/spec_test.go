@@ -3,8 +3,8 @@ package spec_test
 import (
 	"testing"
 
-	"github.com/gonobo/jsonapi/v1"
-	"github.com/gonobo/jsonapi/v1/extra/spec"
+	"github.com/gonobo/jsonapi/v2"
+	"github.com/gonobo/jsonapi/v2/extra/spec"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gonobo/jsonapi/v1"
-	"github.com/gonobo/jsonapi/v1/query"
-	"github.com/gonobo/jsonapi/v1/server"
+	"github.com/gonobo/jsonapi/v2"
+	"github.com/gonobo/jsonapi/v2/query"
+	"github.com/gonobo/jsonapi/v2/server"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -12,10 +12,10 @@ const (
 	MediaType = "application/vnd.api+json"
 )
 
-// Request is a JSON:API http client. It uses an underlying standard library
+// Client is a JSON:API http client. It uses an underlying standard library
 // http client to send requests that adhere to the JSON:API specification.
 //
-// By default, Request generates the following urls (given a base url):
+// By default, Client generates the following urls (given a base url):
 //
 //	":base/:type" for search, create
 //	":base/:type/:id" for fetch, update, delete
@@ -23,21 +23,21 @@ const (
 //	":base/:type/:id/:ref" for fetchRelated
 //
 // This behavior can be modified by updating the URLResolver field of a
-// Request instance.
-type Request struct {
+// Client instance.
+type Client struct {
 	JSONEncoder                // The JSON encoder.
 	URLResolver                // The URL resolver.
+	Doer                       // The underlying http client.
 	BaseURL     string         // The base url of the JSON:API server.
-	Client      Doer           // The underlying http client.
 	Context     RequestContext // The JSON:API request context.
 	Method      string         // The http method to use.
 }
 
 // NewRequest creates a new JSON:API request instance.
-func NewRequest(baseURL string, options ...func(*Request)) Request {
-	r := Request{
+func NewRequest(baseURL string, options ...func(*Client)) Client {
+	r := Client{
 		BaseURL:     baseURL,
-		Client:      http.DefaultClient,
+		Doer:        http.DefaultClient,
 		URLResolver: DefaultURLResolver(),
 		JSONEncoder: DefaultJSONEncoder{},
 	}
@@ -49,123 +49,123 @@ func NewRequest(baseURL string, options ...func(*Request)) Request {
 	return r
 }
 
-// HTTPRequest generates a http.Request from a Request instance.
-func (r Request) HTTPRequest() (*http.Request, error) {
-	url := r.URLResolver.ResolveURL(r.Context, r.BaseURL)
+// httpRequest generates a http.Request from a Request instance.
+func (c Client) httpRequest() (*http.Request, error) {
+	url := c.ResolveURL(c.Context, c.BaseURL)
 	var req *http.Request = nil
 	var body *bytes.Buffer = nil
 	var err error = nil
 
-	if r.Context.Document == nil {
-		return http.NewRequest(r.Method, url, nil)
+	if c.Context.Document == nil {
+		return http.NewRequest(c.Method, url, nil)
 	}
 
 	body = &bytes.Buffer{}
-	err = r.JSONEncoder.EncodeJSON(body, r.Context.Document)
+	err = c.JSONEncoder.EncodeJSON(body, c.Context.Document)
 
 	if err != nil {
 		err = fmt.Errorf("failed to JSON encode request body: %s", err)
 	}
 
 	if err == nil {
-		req, err = http.NewRequest(r.Method, url, body)
+		req, err = http.NewRequest(c.Method, url, body)
 	}
 
 	return req, err
 }
 
 // Get retrieves a single resource from the server.
-func (r Request) Get(resourceType, id string, options ...func(*http.Request)) (*http.Response, error) {
-	r.Method = http.MethodGet
-	r.Context = RequestContext{
+func (c Client) Get(resourceType, id string, options ...func(*http.Request)) (*http.Response, error) {
+	c.Method = http.MethodGet
+	c.Context = RequestContext{
 		ResourceType: resourceType,
 		ResourceID:   id,
 	}
-	return Send(r, options...)
+	return Do(c, options...)
 }
 
 // GetRef retrieves a single resource's relationship from the server.
-func (r Request) GetRef(resourceType, id, ref string, options ...func(*http.Request)) (*http.Response, error) {
-	r.Method = http.MethodGet
-	r.Context = RequestContext{
+func (c Client) GetRef(resourceType, id, ref string, options ...func(*http.Request)) (*http.Response, error) {
+	c.Method = http.MethodGet
+	c.Context = RequestContext{
 		ResourceType: resourceType,
 		ResourceID:   id,
 		Relationship: ref,
 	}
-	return Send(r, options...)
+	return Do(c, options...)
 }
 
 // GetRelated retrieves all server resources that are referenced in a resource's relationship.
-func (r Request) GetRelated(resourceType, id, relation string, options ...func(*http.Request)) (*http.Response, error) {
-	r.Method = http.MethodGet
-	r.Context = RequestContext{
+func (c Client) GetRelated(resourceType, id, relation string, options ...func(*http.Request)) (*http.Response, error) {
+	c.Method = http.MethodGet
+	c.Context = RequestContext{
 		ResourceType: resourceType,
 		ResourceID:   id,
 		Relationship: relation,
 		Related:      true,
 	}
-	return Send(r, options...)
+	return Do(c, options...)
 }
 
 // List retrieves a collection of server resources associated with the resource type.
-func (r Request) List(resourceType string, options ...func(*http.Request)) (*http.Response, error) {
-	r.Method = http.MethodGet
-	r.Context = RequestContext{
+func (c Client) List(resourceType string, options ...func(*http.Request)) (*http.Response, error) {
+	c.Method = http.MethodGet
+	c.Context = RequestContext{
 		ResourceType: resourceType,
 	}
-	return Send(r, options...)
+	return Do(c, options...)
 }
 
 // Create creates a new server resource. If the resource has an empty string resource ID,
 // then the server will assign it; otherwise, the id will be submitted in the request
 // payload.
-func (r Request) Create(data Resource, options ...func(*http.Request)) (*http.Response, error) {
-	r.Method = http.MethodPost
-	r.Context = RequestContext{
+func (c Client) Create(data Resource, options ...func(*http.Request)) (*http.Response, error) {
+	c.Method = http.MethodPost
+	c.Context = RequestContext{
 		ResourceType: data.Type,
 		Document:     &Document{Data: One{Value: &data}},
 	}
-	return Send(r, options...)
+	return Do(c, options...)
 }
 
 // Update updates a new server resource.
-func (r Request) Update(data Resource, options ...func(*http.Request)) (*http.Response, error) {
-	r.Method = http.MethodPatch
-	r.Context = RequestContext{
+func (c Client) Update(data Resource, options ...func(*http.Request)) (*http.Response, error) {
+	c.Method = http.MethodPatch
+	c.Context = RequestContext{
 		ResourceType: data.Type,
 		ResourceID:   data.ID,
 		Document:     &Document{Data: One{Value: &data}},
 	}
-	return Send(r, options...)
+	return Do(c, options...)
 }
 
 // Delete removes a resource from the server.
-func (r Request) Delete(resourceType, id string, options ...func(*http.Request)) (*http.Response, error) {
-	r.Method = http.MethodDelete
-	r.Context = RequestContext{
+func (c Client) Delete(resourceType, id string, options ...func(*http.Request)) (*http.Response, error) {
+	c.Method = http.MethodDelete
+	c.Context = RequestContext{
 		ResourceType: resourceType,
 		ResourceID:   id,
 	}
-	return Send(r, options...)
+	return Do(c, options...)
 }
 
 // UpdateRef replaces a single resource's relationship with the request data.
-func (r Request) UpdateRef(data Resource, ref string, options ...func(*http.Request)) (*http.Response, error) {
-	return Send(r.replaceResourceRef(data, ref, http.MethodPatch), options...)
+func (c Client) UpdateRef(data Resource, ref string, options ...func(*http.Request)) (*http.Response, error) {
+	return Do(c.replaceResourceRef(data, ref, http.MethodPatch), options...)
 }
 
 // AddRefsToMany adds a server resource reference to the provided resource's "to-many" relationship.
-func (r Request) AddRefsToMany(data Resource, ref string, options ...func(*http.Request)) (*http.Response, error) {
-	return Send(r.replaceResourceRef(data, ref, http.MethodPost), options...)
+func (c Client) AddRefsToMany(data Resource, ref string, options ...func(*http.Request)) (*http.Response, error) {
+	return Do(c.replaceResourceRef(data, ref, http.MethodPost), options...)
 }
 
 // RemoveRefsFromMany removes a server resource reference to the provided resource's "to-many" relationship.
-func (r Request) RemoveRefsFromMany(data Resource, ref string, options ...func(*http.Request)) (*http.Response, error) {
-	return Send(r.replaceResourceRef(data, ref, http.MethodDelete), options...)
+func (c Client) RemoveRefsFromMany(data Resource, ref string, options ...func(*http.Request)) (*http.Response, error) {
+	return Do(c.replaceResourceRef(data, ref, http.MethodDelete), options...)
 }
 
-func (r Request) replaceResourceRef(data Resource, ref string, method string) Request {
-	r.Method = method
+func (c Client) replaceResourceRef(data Resource, ref string, method string) Client {
+	c.Method = method
 
 	relation := data.Relationships[ref]
 	document := &Document{}
@@ -173,11 +173,11 @@ func (r Request) replaceResourceRef(data Resource, ref string, method string) Re
 	document.Links = relation.Links
 	document.Data = relation.Data
 
-	r.Context.ResourceType = data.Type
-	r.Context.ResourceID = data.ID
-	r.Context.Relationship = ref
-	r.Context.Document = document
-	return r
+	c.Context.ResourceType = data.Type
+	c.Context.ResourceID = data.ID
+	c.Context.Relationship = ref
+	c.Context.Document = document
+	return c
 }
 
 // Doer is responsible for sending HTTP requests. The Golang http.Client struct
@@ -204,9 +204,9 @@ func (DefaultJSONEncoder) EncodeJSON(w io.Writer, value any) error {
 	return json.NewEncoder(w).Encode(value)
 }
 
-// Send sends a request to the server.
-func Send(r Request, options ...func(*http.Request)) (*http.Response, error) {
-	req, err := r.HTTPRequest()
+// Do sends a request to the server.
+func Do(c Client, options ...func(*http.Request)) (*http.Response, error) {
+	req, err := c.httpRequest()
 	if err != nil {
 		return nil, jsonapiError("create http request: %s", err)
 	}
@@ -215,7 +215,7 @@ func Send(r Request, options ...func(*http.Request)) (*http.Response, error) {
 		option(req)
 	}
 
-	res, err := r.Client.Do(req)
+	res, err := c.Doer.Do(req)
 
 	if err != nil {
 		return nil, jsonapiError("send http request: %s", err)
@@ -226,6 +226,6 @@ func Send(r Request, options ...func(*http.Request)) (*http.Response, error) {
 
 // RequestWithContext sets the request context on the provided request.
 func RequestWithContext(r *http.Request, c *RequestContext) *http.Request {
-	ctx := SetContext(r.Context(), c)
+	ctx := WithContext(r.Context(), c)
 	return r.WithContext(ctx)
 }

@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/gonobo/jsonapi"
+	"github.com/gonobo/jsonapi/v1"
+	"github.com/gonobo/jsonapi/v1/jsonapitest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -90,15 +91,6 @@ func (m *MarshalOverrideItem) UnmarshalJSONAPI(node *jsonapi.Resource) error {
 	return nil
 }
 
-func MarshalRaw(t *testing.T, value any) *json.RawMessage {
-	raw, err := jsonapi.MarshalRaw(value)
-	if err != nil {
-		t.Fatalf("json value: %s", err)
-		return nil
-	}
-	return raw
-}
-
 type InvalidID struct {
 	ID string `jsonapi:"primary"`
 }
@@ -144,7 +136,7 @@ func TestMarshalResource(t *testing.T) {
 				Attributes:    map[string]any{},
 				Relationships: map[string]*jsonapi.Relationship{},
 				Extensions: map[string]*json.RawMessage{
-					"foo:version":    MarshalRaw(t, "2"),
+					"foo:version":    jsonapitest.MarshalRaw(t, "2"),
 					"foo:versionnil": nil,
 				},
 			},
@@ -477,7 +469,7 @@ func TestUnmarshalResource(t *testing.T) {
 			Attributes:    map[string]any{},
 			Relationships: map[string]*jsonapi.Relationship{},
 			Extensions: map[string]*json.RawMessage{
-				"foo:version":    MarshalRaw(t, "2"),
+				"foo:version":    jsonapitest.MarshalRaw(t, "2"),
 				"foo:versionnil": nil,
 			},
 		}

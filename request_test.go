@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/gonobo/jsonapi"
+	"github.com/gonobo/jsonapi/v1"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewRequest(t *testing.T) {
-	client := jsonapi.NewRequest("http://api.foo.com", func(r *jsonapi.Request) {
+	client := jsonapi.NewRequest("http://api.foo.com", func(r *jsonapi.Client) {
 		r.URLResolver = jsonapi.DefaultURLResolver()
 	})
 	assert.NotNil(t, client)
@@ -75,7 +75,7 @@ func TestRequestFetch(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			request := jsonapi.NewRequest("http://api.foo.com")
-			request.Client = doerWithResponse(http.StatusOK, "")
+			request.Doer = doerWithResponse(http.StatusOK, "")
 			_, err := request.Get(tc.resourceType, tc.id, append(
 				tc.options,
 				func(r *http.Request) {
@@ -116,7 +116,7 @@ func TestRequestFetchRef(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			client := jsonapi.NewRequest("http://api.foo.com")
-			client.Client = doerWithResponse(http.StatusOK, "")
+			client.Doer = doerWithResponse(http.StatusOK, "")
 			_, err := client.GetRef(tc.resourceType, tc.id, tc.ref, append(
 				tc.options,
 				func(r *http.Request) {
@@ -156,7 +156,7 @@ func TestRequestFetchRelated(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			client := jsonapi.NewRequest("http://api.foo.com")
-			client.Client = doerWithResponse(http.StatusOK, "")
+			client.Doer = doerWithResponse(http.StatusOK, "")
 			_, err := client.GetRelated(tc.resourceType, tc.id, tc.ref, append(
 				tc.options,
 				func(r *http.Request) {
@@ -192,7 +192,7 @@ func TestRequestSearch(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			client := jsonapi.NewRequest("http://api.foo.com")
-			client.Client = doerWithResponse(http.StatusOK, "")
+			client.Doer = doerWithResponse(http.StatusOK, "")
 			_, err := client.List(tc.resourceType, append(
 				tc.options,
 				func(r *http.Request) {
@@ -230,7 +230,7 @@ func TestRequestCreate(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			client := jsonapi.NewRequest("http://api.foo.com")
-			client.Client = doerWithResponse(http.StatusOK, "")
+			client.Doer = doerWithResponse(http.StatusOK, "")
 			_, err := client.Create(tc.data, append(
 				tc.options,
 				func(r *http.Request) {
@@ -269,7 +269,7 @@ func TestRequestUpdate(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			client := jsonapi.NewRequest("http://api.foo.com")
-			client.Client = doerWithResponse(http.StatusOK, "")
+			client.Doer = doerWithResponse(http.StatusOK, "")
 			_, err := client.Update(tc.data, append(
 				tc.options,
 				func(r *http.Request) {
@@ -307,7 +307,7 @@ func TestRequestDelete(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			client := jsonapi.NewRequest("http://api.foo.com")
-			client.Client = doerWithResponse(http.StatusOK, "")
+			client.Doer = doerWithResponse(http.StatusOK, "")
 			_, err := client.Delete(tc.resourceType, tc.id, append(
 				tc.options,
 				func(r *http.Request) {
@@ -356,7 +356,7 @@ func TestRequestUpdateRef(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			client := jsonapi.NewRequest("http://api.foo.com")
-			client.Client = doerWithResponse(http.StatusOK, "")
+			client.Doer = doerWithResponse(http.StatusOK, "")
 			_, err := client.UpdateRef(tc.data, tc.ref, append(
 				tc.options,
 				func(r *http.Request) {
@@ -405,7 +405,7 @@ func TestRequestAddRefsToMany(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			client := jsonapi.NewRequest("http://api.foo.com")
-			client.Client = doerWithResponse(http.StatusOK, "")
+			client.Doer = doerWithResponse(http.StatusOK, "")
 			_, err := client.AddRefsToMany(tc.data, tc.ref, append(
 				tc.options,
 				func(r *http.Request) {
@@ -454,7 +454,7 @@ func TestRequestRemoveRefsFromMany(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			client := jsonapi.NewRequest("http://api.foo.com")
-			client.Client = doerWithResponse(http.StatusOK, "")
+			client.Doer = doerWithResponse(http.StatusOK, "")
 			_, err := client.RemoveRefsFromMany(tc.data, tc.ref, append(
 				tc.options,
 				func(r *http.Request) {
@@ -481,13 +481,13 @@ func TestSend(t *testing.T) {
 		})
 
 		request.JSONEncoder = jsonEncoderError{}
-		_, err := jsonapi.Send(request)
+		_, err := jsonapi.Do(request)
 		assert.Error(t, err)
 	})
 
 	t.Run("returns an error when the request fails", func(t *testing.T) {
-		request.Client = doerWithError(errors.New("error"))
-		_, err := jsonapi.Send(request)
+		request.Doer = doerWithError(errors.New("error"))
+		_, err := jsonapi.Do(request)
 		assert.Error(t, err)
 	})
 }
@@ -504,7 +504,6 @@ func TestRequestWithContext(t *testing.T) {
 	assert.NoError(t, err)
 	req = jsonapi.RequestWithContext(req, &jsonapictx)
 
-	got, ok := jsonapi.GetContext(req.Context())
-	assert.True(t, ok)
+	got := jsonapi.FromContext(req.Context())
 	assert.Equal(t, jsonapictx, *got)
 }

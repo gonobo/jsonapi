@@ -1,14 +1,42 @@
 package middleware
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
-	"github.com/gonobo/jsonapi"
-	"github.com/gonobo/jsonapi/query"
-	"github.com/gonobo/jsonapi/server"
+	"github.com/gonobo/jsonapi/v1"
+	"github.com/gonobo/jsonapi/v1/query"
+	"github.com/gonobo/jsonapi/v1/server"
 )
+
+func UseRequestBodyParser() server.Options {
+	return server.WithMiddleware(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer r.Body.Close()
+
+			document := jsonapi.Document{}
+
+			if err := json.NewDecoder(r.Body).Decode(&document); errors.Is(err, io.EOF) {
+				// no document inside the payload; execute the next handler
+				next.ServeHTTP(w, r)
+				return
+			} else if err != nil {
+				// document parsing failed; return error to client
+				server.Error(w, fmt.Errorf("request document error: %w", err), http.StatusBadRequest)
+				return
+			}
+
+			// save document to context and continue
+			ctx := jsonapi.FromContext(r.Context())
+			ctx.Document = &document
+			next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))
+		})
+	})
+}
 
 // FieldsetQueryParser is a function that parses the fieldset query parameters.
 type FieldsetQueryParser interface {
@@ -27,7 +55,7 @@ func UseFieldsetQueryParser(parser FieldsetQueryParser) server.Options {
 				return
 			}
 
-			ctx, _ := jsonapi.GetContext(r.Context())
+			ctx := jsonapi.FromContext(r.Context())
 			ctx.Fields = fields
 			next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))
 		})
@@ -40,9 +68,9 @@ type PageQueryParser interface {
 	ParsePageQuery(*http.Request) (query.Page, error)
 }
 
-// UsePaginationQueryParser is a middleware that parses the sort parameters from the URL query and
+// UsePageQueryParser is a middleware that parses the sort parameters from the URL query and
 // stores them within the JSON:API context.
-func UsePaginationQueryParser(parser PageQueryParser) server.Options {
+func UsePageQueryParser(parser PageQueryParser) server.Options {
 	return server.WithMiddleware(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			page, err := parser.ParsePageQuery(r)
@@ -52,7 +80,7 @@ func UsePaginationQueryParser(parser PageQueryParser) server.Options {
 				return
 			}
 
-			ctx, _ := jsonapi.GetContext(r.Context())
+			ctx := jsonapi.FromContext(r.Context())
 			ctx.Pagination = page
 
 			next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))
@@ -79,7 +107,7 @@ func UseFilterQueryParser(parser FilterQueryParser) server.Options {
 				return
 			}
 
-			ctx, _ := jsonapi.GetContext(r.Context())
+			ctx := jsonapi.FromContext(r.Context())
 			ctx.Filter = filter
 			next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))
 		})
@@ -104,7 +132,7 @@ func UseSortQueryParser(parser SortQueryParser) server.Options {
 				return
 			}
 
-			ctx, _ := jsonapi.GetContext(r.Context())
+			ctx := jsonapi.FromContext(r.Context())
 			ctx.Sort = sort
 
 			next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))
@@ -118,7 +146,7 @@ func UseIncludeQueryParser() server.Options {
 	return server.WithMiddleware(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			include := strings.Split(r.URL.Query().Get(query.ParamInclude), ",")
-			ctx, _ := jsonapi.GetContext(r.Context())
+			ctx := jsonapi.FromContext(r.Context())
 			ctx.Include = include
 			next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))
 		})

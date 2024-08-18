@@ -3,188 +3,210 @@ package filter
 import (
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"net/http"
+	"net/url"
 	"strings"
 
-	"github.com/gonobo/jsonapi/query"
+	"github.com/gonobo/jsonapi/v1/query"
+	"github.com/gonobo/validator"
 )
 
 const (
 	QueryKeyFilterExpression = "q"
+	OperationAND             = "and"
+	OperationOR              = "or"
+	OperationNOT             = "not"
 )
 
 var (
-	ErrFilter = errors.New("filter error")
+	ErrEmptyQuery = errors.New("empty query")
+
+	DefaultParser = Parser{
+		Transformer: PassthroughTransformer,
+	}
 )
 
-func FilterError(cause string) error {
-	return fmt.Errorf("%w: %s", ErrFilter, cause)
-}
-
-type Operation string
-
-const (
-	OperationAND Operation = "and"
-	OperationOR  Operation = "or"
-	OperationNOT Operation = "not"
-)
-
-type Transformer interface {
-	TransformFilterToken(*query.Filter) (query.FilterExpression, error)
-}
-
-type TransformerFunc func(*query.Filter) (query.FilterExpression, error)
-
-func (f TransformerFunc) TransformFilterToken(t *query.Filter) (query.FilterExpression, error) {
-	return f(t)
-}
-
-func ParseQuery(q map[string]string) (query.FilterExpression, error) {
-	return ParseQueryWithTransform(q, TransformerFunc(func(t *query.Filter) (query.FilterExpression, error) {
-		// passthrough
-		return t, nil
-	}))
-}
-
-func ParseQueryWithTransform(q map[string]string, transformer Transformer) (query.FilterExpression, error) {
-	params := filterParams(q)
-
-	// extract filter keys
-	filterKeys := params.keys()
-
-	if len(filterKeys) == 0 {
-		// no filter keys listed, return identity
-		return query.IdentityFilter{}, nil
-	}
-
-	// generate expression map from filter keys
-	filterExpression := make(map[string]query.FilterExpression)
-
-	for _, key := range filterKeys {
-		token := params.criteria(key)
-
-		if err := token.validate(); err != nil {
-			cause := fmt.Sprintf("query token: '%s': %s", key, err.Error())
-			return nil, FilterError(cause)
-		}
-
-		expression, err := transformer.TransformFilterToken(token.filter())
-
-		if err != nil {
-			cause := fmt.Sprintf("query token: '%s': %s", key, err.Error())
-			return nil, FilterError(cause)
-		}
-
-		filterExpression[key] = expression
-	}
-
-	// generate expression from query
-	return params.evaluate(filterExpression)
-}
-
-type filterParams map[string]string
-
-func (f filterParams) criteria(key string) criteria {
-	token := criteria{}
-	token.parseQueryParams(key, f)
-	return token
-}
-
-func (f filterParams) keys() []string {
-	query := f.query()
-
-	if query == "" {
-		return nil
-	}
-
-	keys := make([]string, 0)
-
-	for _, key := range strings.Split(query, " ") {
-		switch Operation(strings.ToLower(key)) {
-		case OperationAND:
-			continue
-		case OperationOR:
-			continue
-		case OperationNOT:
-			continue
-		default:
-			keys = append(keys, key)
-		}
-	}
-
-	return keys
-}
-
-func (f filterParams) query() string {
-	return f[QueryKeyFilterExpression]
-}
-
-func (f filterParams) evaluate(expressions map[string]query.FilterExpression) (query.FilterExpression, error) {
-	query := f.query()
-	tokens := strings.Split(query, " ")
-	builder := astBuilder{}
-
-	root, err := builder.build(tokens)
-
-	if err != nil {
-		return nil, FilterError(err.Error())
-	}
-
-	return f.walk(root, expressions)
-}
-
-func (f filterParams) walk(node *node, expressions map[string]query.FilterExpression) (query.FilterExpression, error) {
-	switch node.token.symbol {
-	case symbolAND:
-		expression := &query.AndFilter{}
-		left, lefterr := f.walk(node.left, expressions)
-		right, righterr := f.walk(node.right, expressions)
-		expression.Left = left
-		expression.Right = right
-		return expression, errors.Join(lefterr, righterr)
-	case symbolOR:
-		expression := &query.OrFilter{}
-		left, lefterr := f.walk(node.left, expressions)
-		right, righterr := f.walk(node.right, expressions)
-		expression.Left = left
-		expression.Right = right
-		return expression, errors.Join(lefterr, righterr)
-	case symbolNOT:
-		expression := &query.NotFilter{}
-		value, err := f.walk(node.left, expressions)
-		expression.Value = value
-		return expression, err
-	case symbolVAR:
-		expression := expressions[node.token.value]
-		return expression, nil
-	}
-
-	return nil, fmt.Errorf("invalid or unknown node: %+v", node)
-}
-
-type RequestQueryParser struct {
+type Parser struct {
 	Transformer Transformer
 }
 
-func NewRequestQueryParser(options ...func(*RequestQueryParser)) RequestQueryParser {
-	parser := RequestQueryParser{
-		Transformer: TransformerFunc(func(c *query.Filter) (query.FilterExpression, error) {
-			return c, nil
-		}),
-	}
-
-	for _, option := range options {
-		option(&parser)
-	}
-
-	return parser
+func (Parser) ParseFilterQuery(r *http.Request) (query.FilterExpression, error) {
+	return ParseWithTransform(r.URL.Query(), PassthroughTransformer)
 }
 
-func (p RequestQueryParser) ParseFilterQuery(r *http.Request) (query.FilterExpression, error) {
-	params := make(map[string]string)
-	for k, v := range r.URL.Query() {
-		params[k] = v[0]
+func Parse(query url.Values) (query.FilterExpression, error) {
+	return ParseWithTransform(query, PassthroughTransformer)
+}
+
+func ParseWithTransform(query url.Values, transformer Transformer) (query.FilterExpression, error) {
+	if len(query) == 0 {
+		return nil, ErrEmptyQuery
 	}
 
-	return ParseQueryWithTransform(params, p.Transformer)
+	// parse query as a go expression
+	q := query.Get(QueryKeyFilterExpression)
+
+	// convert logical operators into their go equivalents:
+	// "and" -> "&&"
+	// "or" -> "||"
+	q = strings.ToLower(q)
+	q = strings.ReplaceAll(q, OperationAND, "&&")
+	q = strings.ReplaceAll(q, OperationOR, "||")
+	q = strings.ReplaceAll(q, OperationNOT, "!")
+
+	node, err := parser.ParseExpr(q)
+	if err != nil {
+		return nil, fmt.Errorf("invalid query '%s': %w", q, err)
+	}
+
+	// generate search expression by walking the ast
+	expr, err := parseURLQuery(node, query, transformer)
+	if err != nil {
+		return nil, fmt.Errorf("url query parse failed: %w", err)
+	}
+
+	return expr, nil
+}
+
+type filter string
+
+func (f filter) set(query url.Values, c query.Filter) url.Values {
+	ident := string(f)
+
+	query.Set(fmt.Sprintf("filter[%s][name]", ident), c.Name)
+	query.Set(fmt.Sprintf("filter[%s][condition]", ident), c.Condition)
+	query.Set(fmt.Sprintf("filter[%s][value]", ident), c.Value)
+	return query
+}
+
+func (f filter) get(q url.Values) query.Filter {
+	return query.Filter{
+		Name:      f.name(q),
+		Condition: f.condition(q),
+		Value:     f.value(q),
+	}
+}
+
+func (f filter) name(query url.Values) string {
+	return query.Get(fmt.Sprintf("filter[%s][name]", string(f)))
+}
+
+func (f filter) condition(query url.Values) string {
+	return query.Get(fmt.Sprintf("filter[%s][condition]", string(f)))
+}
+
+func (f filter) value(query url.Values) string {
+	return query.Get(fmt.Sprintf("filter[%s][value]", string(f)))
+}
+
+type urlQueryParser struct {
+	err         error
+	expr        query.FilterExpression
+	transformer Transformer
+	query       url.Values
+}
+
+func parseURLQuery(n ast.Node, query url.Values, transformer Transformer) (query.FilterExpression, error) {
+	parser := &urlQueryParser{
+		query:       query,
+		transformer: transformer,
+	}
+	ast.Walk(parser, n)
+	return parser.expr, parser.err
+}
+
+func (u *urlQueryParser) Visit(n ast.Node) ast.Visitor {
+	if n == nil {
+		// if nil, then we have reached the end of the expression and should end the walk
+		// procedure.
+		return nil
+	}
+
+	switch expr := n.(type) {
+	case *ast.BinaryExpr:
+		return u.visitBinaryExpr(expr)
+	case *ast.UnaryExpr:
+		return u.visitUnaryExpr(expr)
+	case *ast.Ident:
+		return u.visitIdent(expr)
+	}
+
+	return nil
+}
+
+func (u *urlQueryParser) visitIdent(ident *ast.Ident) ast.Visitor {
+	f := filter(ident.Name)
+	criteria := f.get(u.query)
+
+	err := validator.Validate(
+		validator.All(
+			validator.Rule(criteria.Name != "", "filter[%s][name] is required", ident.Name),
+			validator.Rule(criteria.Value != "", "filter[%s][value] is required", ident.Name),
+			validator.Rule(criteria.Condition != "", "filter[%s][condition] is required", ident.Name),
+		),
+	)
+
+	if err == nil {
+		expr, exprerr := u.transformer.TransformCriteria(&criteria)
+		u.expr = expr
+		err = exprerr
+	}
+
+	u.err = err
+	return nil
+}
+
+func (u *urlQueryParser) visitUnaryExpr(unaryExpr *ast.UnaryExpr) ast.Visitor {
+	parser := u.clone()
+	switch unaryExpr.Op {
+	case token.NOT:
+		expr := &query.NotFilter{}
+		parser.Visit(unaryExpr.X)
+		expr.Expression = parser.expr
+		u.expr = expr
+		u.err = parser.err
+		return nil
+	}
+
+	u.err = fmt.Errorf("unsupported operator '%s'", unaryExpr.Op)
+	return nil
+}
+
+func (u *urlQueryParser) visitBinaryExpr(binaryExpr *ast.BinaryExpr) ast.Visitor {
+	left := u.clone()
+	right := u.clone()
+
+	switch binaryExpr.Op {
+	case token.LAND:
+		expr := &query.AndFilter{}
+		left.Visit(binaryExpr.X)
+		right.Visit(binaryExpr.Y)
+		expr.Left = left.expr
+		expr.Right = right.expr
+		u.expr = expr
+		u.err = errors.Join(left.err, right.err)
+		return nil
+	case token.LOR:
+		expr := &query.OrFilter{}
+		left.Visit(binaryExpr.X)
+		right.Visit(binaryExpr.Y)
+		expr.Left = left.expr
+		expr.Right = right.expr
+		u.expr = expr
+		u.err = errors.Join(left.err, right.err)
+		return nil
+	}
+
+	u.err = fmt.Errorf("unsupported operator '%s'", binaryExpr.Op)
+	return nil
+}
+
+func (u urlQueryParser) clone() *urlQueryParser {
+	return &urlQueryParser{
+		transformer: u.transformer,
+		query:       u.query,
+	}
 }

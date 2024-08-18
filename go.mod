@@ -1,4 +1,4 @@
-module github.com/gonobo/jsonapi
+module github.com/gonobo/jsonapi/v1
 
 go 1.22.3
 

@@ -2,10 +2,11 @@ package filter_test
 
 import (
 	"errors"
+	"net/url"
 	"testing"
 
-	"github.com/gonobo/jsonapi/query"
-	"github.com/gonobo/jsonapi/query/filter"
+	"github.com/gonobo/jsonapi/v1/query"
+	"github.com/gonobo/jsonapi/v1/query/filter"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,6 +14,14 @@ type provider map[string]string
 
 func (p provider) FilterParams() map[string]string {
 	return p
+}
+
+func (p provider) Values() url.Values {
+	values := make(url.Values)
+	for k, v := range p {
+		values.Set(k, v)
+	}
+	return values
 }
 
 func TestParseQuery(t *testing.T) {
@@ -23,13 +32,16 @@ func TestParseQuery(t *testing.T) {
 	}
 
 	run := func(t *testing.T, tc testcase) {
-		params := tc.provider.FilterParams()
-		expr, err := filter.ParseQuery(params)
+		params := tc.provider.Values()
+
+		expr, err := filter.Parse(params)
 		if tc.wantErr && assert.Error(t, err) {
-			assert.ErrorIs(t, err, filter.ErrFilter)
+			assert.Error(t, err)
 			return
 		}
-		assert.NoError(t, err)
+		if !assert.NoError(t, err) {
+			return
+		}
 		got := expr.String()
 		assert.Equal(t, tc.want, got)
 	}
@@ -37,7 +49,7 @@ func TestParseQuery(t *testing.T) {
 	t.Run("no query", func(t *testing.T) {
 		run(t, testcase{
 			provider: provider{},
-			want:     "TRUE",
+			wantErr:  true,
 		})
 	})
 
@@ -174,7 +186,7 @@ func TestParseQuery(t *testing.T) {
 		})
 	})
 
-	t.Run("warning: adjacent tokens yield undefined results", func(t *testing.T) {
+	t.Run("invalid query expression", func(t *testing.T) {
 		run(t, testcase{
 			provider: provider{
 				"q":                     "p2 p3",
@@ -185,7 +197,7 @@ func TestParseQuery(t *testing.T) {
 				"filter[p3][condition]": "eq",
 				"filter[p3][value]":     "4",
 			},
-			want: "[value eq '2']",
+			wantErr: true,
 		})
 	})
 
@@ -201,57 +213,54 @@ func TestParseQuery(t *testing.T) {
 
 func TestParseQueryWithTransform(t *testing.T) {
 	t.Run("transform error", func(t *testing.T) {
-		_, err := filter.ParseQueryWithTransform(
+		_, err := filter.ParseWithTransform(
 			provider{
 				"q":                     "p1",
 				"filter[p1][name]":      "value",
 				"filter[p1][condition]": "eq",
 				"filter[p1][value]":     "5",
-			},
+			}.Values(),
 			filter.TransformerFunc(func(t *query.Filter) (query.FilterExpression, error) {
 				return nil, errors.New("transformer error")
 			}),
 		)
 
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, filter.ErrFilter)
 	})
 
 	t.Run("with muxer", func(t *testing.T) {
-		got, err := filter.ParseQueryWithTransform(
+		got, err := filter.ParseWithTransform(
 			provider{
 				"q":                     "p1",
 				"filter[p1][name]":      "value",
 				"filter[p1][condition]": "eq",
 				"filter[p1][value]":     "5",
-			},
-			filter.TransformerMux{Transformers: map[string]filter.Transformer{
+			}.Values(),
+			filter.TransformerMux{
 				"value": filter.TransformerFunc(func(t *query.Filter) (query.FilterExpression, error) {
 					t.Value = "42"
 					return t, nil
 				}),
-			}},
+			},
 		)
 		assert.NoError(t, err)
 		assert.Equal(t, "[value eq '42']", got.String())
 	})
 
 	t.Run("with strict muxer", func(t *testing.T) {
-		_, err := filter.ParseQueryWithTransform(
+		_, err := filter.ParseWithTransform(
 			provider{
 				"q":                     "p1",
 				"filter[p1][name]":      "value",
 				"filter[p1][condition]": "eq",
 				"filter[p1][value]":     "5",
-			},
+			}.Values(),
 			filter.TransformerMux{
-				Strict: true,
-				Transformers: map[string]filter.Transformer{
-					"foo": filter.TransformerFunc(func(t *query.Filter) (query.FilterExpression, error) {
-						t.Value = "42"
-						return t, nil
-					}),
-				}},
+				"foo": filter.TransformerFunc(func(t *query.Filter) (query.FilterExpression, error) {
+					t.Value = "42"
+					return t, nil
+				}),
+			}.Strict(),
 		)
 		assert.Error(t, err)
 	})

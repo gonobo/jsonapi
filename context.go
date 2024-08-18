@@ -3,7 +3,7 @@ package jsonapi
 import (
 	"context"
 
-	"github.com/gonobo/jsonapi/query"
+	"github.com/gonobo/jsonapi/v1/query"
 )
 
 // RequestContext contains information about the JSON:API request that defines it.
@@ -67,17 +67,20 @@ func (c RequestContext) Root() *RequestContext {
 	}
 }
 
-// GetContext returns the JSON:API Context from the parent context.
-// Returns false if the context has not been set, or if the context
-// is nil.
-func GetContext(parent context.Context) (*RequestContext, bool) {
+// FromContext returns the JSON:API FromContext from the parent context.
+// FromContext panics if the context was never set.
+func FromContext(parent context.Context) *RequestContext {
 	value := parent.Value(jsonapiContextKey)
 	ctx, ok := value.(*RequestContext)
-	ok = ok && ctx != nil
-	return ctx, ok
+	if !ok {
+		panic("parent context does not contain a JSON:API context")
+	} else if ctx == nil {
+		panic("parent context contains a nil JSON:API context")
+	}
+	return ctx
 }
 
-// SetContext sets the JSON:API Context in the parent context.
-func SetContext(ctx context.Context, value *RequestContext) context.Context {
+// WithContext sets the JSON:API Context in the parent context.
+func WithContext(ctx context.Context, value *RequestContext) context.Context {
 	return context.WithValue(ctx, jsonapiContextKey, value)
 }

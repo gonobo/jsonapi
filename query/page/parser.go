@@ -1,11 +1,16 @@
-package pagination
+package page
 
 import (
 	"fmt"
 	"net/http"
 	"strconv"
 
-	"github.com/gonobo/jsonapi/query"
+	"github.com/gonobo/jsonapi/v1/query"
+)
+
+var (
+	DefaultPageParser   = PageNavigationParser{}
+	DefaultCursorParser = CursorNavigationParser{}
 )
 
 type Criteria = query.Page

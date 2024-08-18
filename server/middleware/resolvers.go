@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gonobo/jsonapi"
-	"github.com/gonobo/jsonapi/server"
+	"github.com/gonobo/jsonapi/v1"
+	"github.com/gonobo/jsonapi/v1/server"
 )
 
 // UseRelatedResourceResolver is a middleware that handles incoming requests
@@ -38,7 +38,7 @@ type relatedResourceResolver struct {
 }
 
 func (rr relatedResourceResolver) includeRelated(w http.ResponseWriter, r *http.Request) {
-	ctx, _ := jsonapi.GetContext(r.Context())
+	ctx := jsonapi.FromContext(r.Context())
 
 	// skip if the request is not for a single resource.
 
@@ -88,7 +88,7 @@ func (rr relatedResourceResolver) includeRelated(w http.ResponseWriter, r *http.
 }
 
 func (rr relatedResourceResolver) retrieveRelated(w http.ResponseWriter, r *http.Request) {
-	ctx, _ := jsonapi.GetContext(r.Context())
+	ctx := jsonapi.FromContext(r.Context())
 
 	// skip if the request is not for related resources
 	if !rr.isRelatedResourceRequest(ctx) {
@@ -180,7 +180,7 @@ func (rr relatedResourceResolver) fetchResourceRelationships(r *http.Request,
 			return nil
 		}
 
-		ctx, _ := jsonapi.GetContext(r.Context())
+		ctx := jsonapi.FromContext(r.Context())
 		ctx = ctx.EmptyChild()
 		ctx.FetchIDs = make([]string, 0, len(items))
 

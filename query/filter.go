@@ -21,9 +21,9 @@ const (
 // are usually combined using logical operators -- such as "and", "or", or "not" -- into
 // a single filter expression.
 type Filter struct {
-	Name      string          // The field name, usually referencing an attribute or relationship on a resource.
-	Condition FilterCondition // The operator to apply on both the resource field and the token's value.
-	Value     string          // The target value.
+	Name      string // The field name, usually referencing an attribute or relationship on a resource.
+	Condition string // The operator to apply on both the resource field and the token's value.
+	Value     string // The target value.
 }
 
 // String returns a string representation of the filter query.
@@ -37,7 +37,7 @@ func (c Filter) ApplyFilterEvaluator(e FilterEvaluator) error {
 }
 
 // FilterExpression defines a logical expression that was requested by a client.
-// It can be evaluated by a FilterEvaluator.
+// It can be evaluated by a [FilterEvaluator].
 type FilterExpression interface {
 	fmt.Stringer
 	// ApplyFilterEvaluator applies the evaluator to this expression. Implementors
@@ -45,7 +45,7 @@ type FilterExpression interface {
 	ApplyFilterEvaluator(FilterEvaluator) error
 }
 
-// FilterEvaluator defines the interface for evaluating a FilterExpression. Implementers can
+// FilterEvaluator defines the interface for evaluating a [FilterExpression]. Implementers can
 // extend the evaluation system by defining expression types the invoke EvaluateCustomFilter()
 // method on acceptance:
 //
@@ -87,7 +87,7 @@ func EvaluateFilter(evaluator FilterEvaluator, expr FilterExpression) error {
 	return expr.ApplyFilterEvaluator(evaluator)
 }
 
-// AndFilter defines a logical AND expression that was requested by a client.
+// AndFilter defines a logical AND [FilterExpression] that was requested by a client.
 type AndFilter struct {
 	Left  FilterExpression // The left operand of the AND expression.
 	Right FilterExpression // The right operand of the AND expression.
@@ -103,7 +103,7 @@ func (a *AndFilter) ApplyFilterEvaluator(e FilterEvaluator) error {
 	return e.EvaluateAndFilter(a)
 }
 
-// OrFilter defines a logical OR expression that was requested by a client.
+// OrFilter defines a logical OR [FilterExpression] that was requested by a client.
 type OrFilter struct {
 	Left  FilterExpression // The left operand of the OR expression.
 	Right FilterExpression // The right operation of the OR expression.
@@ -119,14 +119,14 @@ func (o *OrFilter) ApplyFilterEvaluator(e FilterEvaluator) error {
 	return e.EvaluateOrFilter(o)
 }
 
-// NotFilter defines a logical NOT expression that was requested by a client.
+// NotFilter defines a logical NOT [FilterExpression] that was requested by a client.
 type NotFilter struct {
-	Value FilterExpression
+	Expression FilterExpression
 }
 
 // String returns a string representation of the NOT expression.
 func (n NotFilter) String() string {
-	return fmt.Sprintf("!%s", n.Value)
+	return fmt.Sprintf("!%s", n.Expression)
 }
 
 // ApplyFilterEvaluator applies the evaluator to this expression.
@@ -145,4 +145,35 @@ func (i IdentityFilter) ApplyFilterEvaluator(e FilterEvaluator) error {
 // String returns a string representation of the identity expression.
 func (IdentityFilter) String() string {
 	return "TRUE"
+}
+
+// FilterBuilder uses chain methods to build a complex [FilterExpression].
+type FilterBuilder struct {
+	expr FilterExpression
+}
+
+// NewFilterBuilder creates a new [FilterBuilder] with the given [Filter].
+func NewFilterBuilder(f Filter) FilterBuilder {
+	return FilterBuilder{expr: &f}
+}
+
+// And adds an "and" condition to the expression.
+func (b FilterBuilder) And(left FilterExpression) FilterBuilder {
+	return FilterBuilder{expr: &AndFilter{Left: left, Right: b.expr}}
+}
+
+// Or adds an "or" condition to the expression.
+func (b FilterBuilder) Or(right FilterExpression) FilterBuilder {
+	return FilterBuilder{expr: &OrFilter{Left: b.expr, Right: right}}
+}
+
+// Not negates the expression.
+func (b FilterBuilder) Not() FilterBuilder {
+	return FilterBuilder{expr: &NotFilter{Expression: b.expr}}
+}
+
+// ApplyFilterEvaluator implements [FilterExpression]. It applies the
+// evaluator to the underlying expression.
+func (b FilterBuilder) ApplyFilterEvaluator(e FilterEvaluator) error {
+	return b.expr.ApplyFilterEvaluator(e)
 }

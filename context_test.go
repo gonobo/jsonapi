@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/gonobo/jsonapi"
+	"github.com/gonobo/jsonapi/v1"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,15 +32,21 @@ func TestContext(t *testing.T) {
 	})
 
 	t.Run("get context", func(t *testing.T) {
-		ctx, ok := jsonapi.GetContext(context.TODO())
-		assert.Nil(t, ctx)
-		assert.False(t, ok)
+		assert.Panics(t, func() {
+			jsonapi.FromContext(context.TODO())
+		})
+	})
+
+	t.Run("nil context", func(t *testing.T) {
+		ctx := jsonapi.WithContext(context.Background(), nil)
+		assert.Panics(t, func() {
+			jsonapi.FromContext(ctx)
+		})
 	})
 
 	t.Run("set context", func(t *testing.T) {
-		ctx := jsonapi.SetContext(context.Background(), &jsonapi.RequestContext{})
-		jsonapictx, ok := jsonapi.GetContext(ctx)
-		assert.True(t, ok)
+		ctx := jsonapi.WithContext(context.Background(), &jsonapi.RequestContext{})
+		jsonapictx := jsonapi.FromContext(ctx)
 		assert.NotNil(t, jsonapictx)
 	})
 }

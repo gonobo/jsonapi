@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/gonobo/jsonapi"
+	"github.com/gonobo/jsonapi/v1"
 )
 
 type Config struct {
-	contextResolver jsonapi.RequestContextResolver
+	contextResolver jsonapi.ContextResolver
 	documentOptions []DocumentOptions
 	jsonapiMarshal  jsonapiMarshalFunc
 	jsonMarshal     jsonMarshalFunc
@@ -71,7 +71,7 @@ func DefaultConfig() Config {
 	return Config{
 		jsonapiMarshal:  jsonapi.Marshal,
 		jsonMarshal:     json.Marshal,
-		contextResolver: jsonapi.DefaultRequestContextResolver(),
+		contextResolver: jsonapi.DefaultContextResolver(),
 	}
 }
 
@@ -81,7 +81,7 @@ func WithJSONMarshaler(marshal jsonMarshalFunc) WriteOptions {
 	}
 }
 
-func WithContextResolver(resolver jsonapi.RequestContextResolver) Options {
+func WithContextResolver(resolver jsonapi.ContextResolver) Options {
 	return func(c *Config) {
 		c.contextResolver = resolver
 	}
@@ -96,5 +96,14 @@ func WithMiddleware(middleware Middleware) Options {
 func WithDocumentOptions(options DocumentOptions) WriteOptions {
 	return func(c *Config) {
 		c.documentOptions = append(c.documentOptions, options)
+	}
+}
+
+// PassthroughContextResolver returns a resolver that returns an existing
+// request context from the request.
+func PassthroughContextResolver() jsonapi.ContextResolverFunc {
+	return func(r *http.Request) (*jsonapi.RequestContext, error) {
+		ctx := jsonapi.FromContext(r.Context())
+		return ctx, nil
 	}
 }

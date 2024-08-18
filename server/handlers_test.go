@@ -6,11 +6,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gonobo/jsonapi"
-	"github.com/gonobo/jsonapi/jsonapitest"
-	"github.com/gonobo/jsonapi/server"
-	"github.com/gonobo/jsonapi/server/middleware"
-	"github.com/gonobo/jsonapi/server/servertest"
+	"github.com/gonobo/jsonapi/v1"
+	"github.com/gonobo/jsonapi/v1/jsonapitest"
+	"github.com/gonobo/jsonapi/v1/server"
+	"github.com/gonobo/jsonapi/v1/server/middleware"
+	"github.com/gonobo/jsonapi/v1/server/servertest"
 )
 
 type fixture struct {
@@ -66,9 +66,9 @@ func TestHandle(t *testing.T) {
 			Req:  httptest.NewRequest("GET", "/things", nil),
 			Options: []fixtureopts{
 				withOption(
-					server.WithContextResolver(jsonapi.RequestContextResolverFunc(
-						func(r *http.Request) (jsonapi.RequestContext, error) {
-							return jsonapi.RequestContext{}, errors.New("failed")
+					server.WithContextResolver(jsonapi.ContextResolverFunc(
+						func(r *http.Request) (*jsonapi.RequestContext, error) {
+							return nil, errors.New("failed")
 						},
 					)),
 				),
@@ -127,7 +127,7 @@ func TestResourceMux(t *testing.T) {
 					mux.ServeHTTP(w, jsonapi.RequestWithContext(r, nil))
 				})),
 			},
-			WantStatus: http.StatusInternalServerError,
+			WantPanic: true,
 		},
 		{
 			Name: "returns 404 on unknown resource",
@@ -155,7 +155,7 @@ type node struct {
 type nodeResource map[string]*node
 
 func (n nodeResource) createNode(w http.ResponseWriter, r *http.Request) {
-	ctx, _ := jsonapi.GetContext(r.Context())
+	ctx := jsonapi.FromContext(r.Context())
 	data := node{}
 	err := jsonapi.Unmarshal(ctx.Document, &data)
 
@@ -177,7 +177,7 @@ func (n nodeResource) listNodes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (n nodeResource) getNode(w http.ResponseWriter, r *http.Request) {
-	ctx, _ := jsonapi.GetContext(r.Context())
+	ctx := jsonapi.FromContext(r.Context())
 	item, ok := n[ctx.ResourceID]
 	if !ok {
 		server.Error(w, errors.New("not found"), http.StatusNotFound)
@@ -187,7 +187,7 @@ func (n nodeResource) getNode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (n nodeResource) getNodeChildren(w http.ResponseWriter, r *http.Request) {
-	ctx, _ := jsonapi.GetContext(r.Context())
+	ctx := jsonapi.FromContext(r.Context())
 	item, ok := n[ctx.ResourceID]
 	if !ok {
 		server.Error(w, errors.New("not found"), http.StatusNotFound)
@@ -197,7 +197,7 @@ func (n nodeResource) getNodeChildren(w http.ResponseWriter, r *http.Request) {
 }
 
 func (n nodeResource) updateNode(w http.ResponseWriter, r *http.Request) {
-	ctx, _ := jsonapi.GetContext(r.Context())
+	ctx := jsonapi.FromContext(r.Context())
 	item, ok := n[ctx.ResourceID]
 	if !ok {
 		server.Error(w, errors.New("not found"), http.StatusNotFound)
@@ -215,7 +215,7 @@ func (n nodeResource) updateNode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (n nodeResource) deleteNode(w http.ResponseWriter, r *http.Request) {
-	ctx, _ := jsonapi.GetContext(r.Context())
+	ctx := jsonapi.FromContext(r.Context())
 	delete(n, ctx.ResourceID)
 	server.Write(w, nil, http.StatusNoContent)
 }
@@ -378,7 +378,7 @@ func TestResource(t *testing.T) {
 					handler.ServeHTTP(w, jsonapi.RequestWithContext(r, nil))
 				})),
 			},
-			WantStatus: http.StatusInternalServerError,
+			WantPanic: true,
 		},
 		{
 			Name: "relationship mux fails when request context is missing",
@@ -389,7 +389,7 @@ func TestResource(t *testing.T) {
 					handler.ServeHTTP(w, jsonapi.RequestWithContext(r, nil))
 				})),
 			},
-			WantStatus: http.StatusInternalServerError,
+			WantPanic: true,
 		},
 		{
 			Name: "returns 404 on unknown ref endpoint",

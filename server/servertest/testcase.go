@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gonobo/jsonapi/jsonapitest"
+	"github.com/gonobo/jsonapi/v1/jsonapitest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,6 +23,7 @@ type Case[F Fixture] struct {
 	Skip       bool
 	WantStatus int
 	WantBody   string
+	WantPanic  bool
 	Assert     []func(*testing.T, *http.Response)
 }
 
@@ -41,7 +42,17 @@ func Run[F Fixture](t *testing.T, testcases ...Case[F]) {
 
 			w := httptest.NewRecorder()
 			h := f.Handler(t)
-			h.ServeHTTP(w, tc.Req)
+
+			if tc.WantPanic {
+				assert.Panics(t, func() {
+					h.ServeHTTP(w, tc.Req)
+				})
+				return
+			}
+
+			assert.NotPanics(t, func() {
+				h.ServeHTTP(w, tc.Req)
+			})
 
 			res := w.Result()
 			assert.Equal(t, tc.WantStatus, res.StatusCode, "status code not equal")

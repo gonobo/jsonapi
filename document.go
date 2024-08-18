@@ -5,29 +5,31 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"slices"
 	"sort"
 	"strings"
 
-	"github.com/gonobo/jsonapi/internal/jsontest"
-	"github.com/gonobo/jsonapi/query"
+	"github.com/gonobo/jsonapi/v1/internal/jsontest"
+	"github.com/gonobo/jsonapi/v1/query"
 )
 
 const LatestSupportedVersion = "1.1"
+
+var (
+	ErrJSONAPI = errors.New("jsonapi error")
+)
 
 // Document is the highest order node, containing either a single resource
 // or collection of resources in response to a client request. Clients also
 // send documents to a server to create or modify existing resources.
 type Document struct {
-	Jsonapi           JSONAPI                     // The JSON:API object.
-	Data              PrimaryData                 // The primary data.
-	Meta              Meta                        // Top-level metadata.
-	Links             Links                       // Top-level links.
-	Errors            []*Error                    // Server response errors.
-	Included          []*Resource                 // Included resources associated with the primary data.
-	Extensions        map[string]*json.RawMessage // Optional JSON:API extensions.
-	ValidateOnMarshal bool                        // Optional verification according to the JSON:API specification
+	Jsonapi    JSONAPI                     // The JSON:API object.
+	Data       PrimaryData                 // The primary data.
+	Meta       Meta                        // Top-level metadata.
+	Links      Links                       // Top-level links.
+	Errors     []*Error                    // Server response errors.
+	Included   []*Resource                 // Included resources associated with the primary data.
+	Extensions map[string]*json.RawMessage // Optional JSON:API extensions.
 }
 
 // NewSingleDocument creates a new document with the provided resource as primary data.
@@ -46,19 +48,12 @@ func NewMultiDocument(data ...*Resource) *Document {
 
 // Decode reads the JSON-encoded document from its input and stores it in the input document.
 func Decode(r io.Reader, doc *Document) error {
-	return json.NewDecoder(r).Decode(&doc)
+	return json.NewDecoder(r).Decode(doc)
 }
 
 // Encode writes the JSON encoding of v to the stream, followed by a newline character.
-func Encode(w io.Writer, doc *Document) error {
+func Encode(w io.Writer, doc Document) error {
 	return json.NewEncoder(w).Encode(doc)
-}
-
-// Validate checks the document for correctness.
-
-// ApplyVisitor allows the provided visitor to traverse this document.
-func (d *Document) ApplyVisitor(v *Visitor) error {
-	return applyDocumentVisitor(d, v)
 }
 
 // Error calls errors.Join() on all errors within the document.
@@ -71,12 +66,19 @@ func (d Document) Error() error {
 	return errors.Join(errs...)
 }
 
+type DocumentValidator interface {
+	ValidateDocument(*Document) error
+}
+
+func (d Document) Validate(validator DocumentValidator) error {
+	if err := validator.ValidateDocument(&d); err != nil {
+		return fmt.Errorf("document failed validation: %w", err)
+	}
+	return nil
+}
+
 // MarshalJSON serializes the document as JSON.
 func (d Document) MarshalJSON() ([]byte, error) {
-	if err := ValidateSpec(&d); err != nil {
-		return nil, fmt.Errorf("marshal: document failed spec: %w", err)
-	}
-
 	type out struct {
 		Jsonapi  JSONAPI     `json:"jsonapi,omitempty"`
 		Data     PrimaryData `json:"data,omitempty"`
@@ -451,23 +453,6 @@ type PrimaryData interface {
 	First() *Resource
 }
 
-// First returns the first item in a primary data node -- the node itself for single or "one"
-// primary data, or the first element in multi or "many" primary data.
-//
-// If the data node is set to "null" (a jsonapi.One instance with a nil value) then nil is returned.
-// If the data node itself is nil, First() panics.
-//
-// Deprecated: First is deprecated and will be removed in the next major release. Use the First()
-// method on the PrimaryData interface instead.
-func First(data PrimaryData) *Resource {
-	log.Println("The First() function is deprecated and will be removed in the next major release. Use the PrimaryData.First() method instead.")
-	items := data.Items()
-	if len(items) == 0 {
-		return nil
-	}
-	return items[0]
-}
-
 // IsMany returns false, as this is a "to-one" relationship.
 func (One) IsMany() bool { return false }
 
@@ -728,4 +713,17 @@ func (n *node[T]) UnmarshalJSON(data []byte) error {
 	}
 
 	return errors.Join(errs...)
+}
+
+func jsonapiError(format string, v ...any) error {
+	msg := fmt.Sprintf(format, v...)
+	return fmt.Errorf("%w: %s", ErrJSONAPI, msg)
+}
+
+// NewError creates a new ErrorNode with the given status and title.
+func NewError(cause error, title string) Error {
+	return Error{
+		Title:  title,
+		Detail: cause.Error(),
+	}
 }

@@ -1,10 +1,12 @@
-package jsonapi_test
+package visitor_test
 
 import (
 	"encoding/json"
 	"testing"
 
-	"github.com/gonobo/jsonapi"
+	"github.com/gonobo/jsonapi/v1"
+	"github.com/gonobo/jsonapi/v1/extra/visitor"
+	"github.com/gonobo/jsonapi/v1/jsonapitest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,7 +17,7 @@ func TestVisitor(t *testing.T) {
 		wantErr  bool
 	}
 
-	partial := jsonapi.PartialVisitor{
+	partial := visitor.SectionVisitor{
 		Document: func(d *jsonapi.Document) error { return nil },
 	}
 
@@ -46,7 +48,7 @@ func TestVisitor(t *testing.T) {
 						Type:       "nodes",
 						Attributes: map[string]any{"foo": "bar"},
 						Extensions: map[string]*json.RawMessage{
-							"foo": MarshalRaw(t, "bar"),
+							"foo": jsonapitest.MarshalRaw(t, "bar"),
 						},
 						Links: jsonapi.Links{},
 						Meta:  jsonapi.Meta{},
@@ -71,7 +73,7 @@ func TestVisitor(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.document.ApplyVisitor(partial.Visitor())
+			err := visitor.VisitDocument(partial.Visitor(), &tc.document)
 			if tc.wantErr {
 				assert.Error(t, err)
 				return

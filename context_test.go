@@ -37,6 +37,13 @@ func TestContext(t *testing.T) {
 		})
 	})
 
+	t.Run("nil context", func(t *testing.T) {
+		ctx := jsonapi.WithContext(context.Background(), nil)
+		assert.Panics(t, func() {
+			jsonapi.FromContext(ctx)
+		})
+	})
+
 	t.Run("set context", func(t *testing.T) {
 		ctx := jsonapi.WithContext(context.Background(), &jsonapi.RequestContext{})
 		jsonapictx := jsonapi.FromContext(ctx)

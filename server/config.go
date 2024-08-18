@@ -98,3 +98,12 @@ func WithDocumentOptions(options DocumentOptions) WriteOptions {
 		c.documentOptions = append(c.documentOptions, options)
 	}
 }
+
+// PassthroughContextResolver returns a resolver that returns an existing
+// request context from the request.
+func PassthroughContextResolver() jsonapi.ContextResolverFunc {
+	return func(r *http.Request) (*jsonapi.RequestContext, error) {
+		ctx := jsonapi.FromContext(r.Context())
+		return ctx, nil
+	}
+}

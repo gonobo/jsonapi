@@ -74,6 +74,8 @@ func FromContext(parent context.Context) *RequestContext {
 	ctx, ok := value.(*RequestContext)
 	if !ok {
 		panic("parent context does not contain a JSON:API context")
+	} else if ctx == nil {
+		panic("parent context contains a nil JSON:API context")
 	}
 	return ctx
 }

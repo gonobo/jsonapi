@@ -127,7 +127,7 @@ func TestResourceMux(t *testing.T) {
 					mux.ServeHTTP(w, jsonapi.RequestWithContext(r, nil))
 				})),
 			},
-			WantStatus: http.StatusInternalServerError,
+			WantPanic: true,
 		},
 		{
 			Name: "returns 404 on unknown resource",
@@ -378,7 +378,7 @@ func TestResource(t *testing.T) {
 					handler.ServeHTTP(w, jsonapi.RequestWithContext(r, nil))
 				})),
 			},
-			WantStatus: http.StatusInternalServerError,
+			WantPanic: true,
 		},
 		{
 			Name: "relationship mux fails when request context is missing",
@@ -389,7 +389,7 @@ func TestResource(t *testing.T) {
 					handler.ServeHTTP(w, jsonapi.RequestWithContext(r, nil))
 				})),
 			},
-			WantStatus: http.StatusInternalServerError,
+			WantPanic: true,
 		},
 		{
 			Name: "returns 404 on unknown ref endpoint",

@@ -3,7 +3,7 @@ package filter
 import (
 	"fmt"
 
-	"github.com/gonobo/jsonapi/v1/query"
+	"github.com/gonobo/jsonapi/v2/query"
 )
 
 // Transformer can transform [query.Filter] criteria into another [query.FilterExpression]. This is useful

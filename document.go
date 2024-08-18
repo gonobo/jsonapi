@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gonobo/jsonapi/v1/internal/jsontest"
-	"github.com/gonobo/jsonapi/v1/query"
+	"github.com/gonobo/jsonapi/v2/internal/jsontest"
+	"github.com/gonobo/jsonapi/v2/query"
 )
 
 const LatestSupportedVersion = "1.1"

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gonobo/jsonapi/v1"
+	"github.com/gonobo/jsonapi/v2"
 )
 
 var (

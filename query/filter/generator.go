@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/gonobo/jsonapi/v1/query"
+	"github.com/gonobo/jsonapi/v2/query"
 )
 
 func Generate(expr query.FilterExpression, q url.Values) error {

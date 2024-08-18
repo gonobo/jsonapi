@@ -504,7 +504,6 @@ func TestRequestWithContext(t *testing.T) {
 	assert.NoError(t, err)
 	req = jsonapi.RequestWithContext(req, &jsonapictx)
 
-	got, ok := jsonapi.FromContext(req.Context())
-	assert.True(t, ok)
+	got := jsonapi.FromContext(req.Context())
 	assert.Equal(t, jsonapictx, *got)
 }

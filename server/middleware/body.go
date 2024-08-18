@@ -29,7 +29,7 @@ func UseRequestBodyParser() server.Options {
 			}
 
 			// save document to context and continue
-			ctx, _ := jsonapi.FromContext(r.Context())
+			ctx := jsonapi.FromContext(r.Context())
 			ctx.Document = &document
 			next.ServeHTTP(w, jsonapi.RequestWithContext(r, ctx))
 		})

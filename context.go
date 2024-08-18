@@ -68,12 +68,14 @@ func (c RequestContext) Root() *RequestContext {
 }
 
 // FromContext returns the JSON:API FromContext from the parent context.
-// Returns false if the context has not been set, or if the context
-// is nil.
-func FromContext(parent context.Context) (*RequestContext, bool) {
+// FromContext panics if the context was never set.
+func FromContext(parent context.Context) *RequestContext {
 	value := parent.Value(jsonapiContextKey)
 	ctx, ok := value.(*RequestContext)
-	return ctx, ok && ctx != nil
+	if !ok {
+		panic("parent context does not contain a JSON:API context")
+	}
+	return ctx
 }
 
 // WithContext sets the JSON:API Context in the parent context.

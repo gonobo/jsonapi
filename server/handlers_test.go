@@ -155,7 +155,7 @@ type node struct {
 type nodeResource map[string]*node
 
 func (n nodeResource) createNode(w http.ResponseWriter, r *http.Request) {
-	ctx, _ := jsonapi.FromContext(r.Context())
+	ctx := jsonapi.FromContext(r.Context())
 	data := node{}
 	err := jsonapi.Unmarshal(ctx.Document, &data)
 
@@ -177,7 +177,7 @@ func (n nodeResource) listNodes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (n nodeResource) getNode(w http.ResponseWriter, r *http.Request) {
-	ctx, _ := jsonapi.FromContext(r.Context())
+	ctx := jsonapi.FromContext(r.Context())
 	item, ok := n[ctx.ResourceID]
 	if !ok {
 		server.Error(w, errors.New("not found"), http.StatusNotFound)
@@ -187,7 +187,7 @@ func (n nodeResource) getNode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (n nodeResource) getNodeChildren(w http.ResponseWriter, r *http.Request) {
-	ctx, _ := jsonapi.FromContext(r.Context())
+	ctx := jsonapi.FromContext(r.Context())
 	item, ok := n[ctx.ResourceID]
 	if !ok {
 		server.Error(w, errors.New("not found"), http.StatusNotFound)
@@ -197,7 +197,7 @@ func (n nodeResource) getNodeChildren(w http.ResponseWriter, r *http.Request) {
 }
 
 func (n nodeResource) updateNode(w http.ResponseWriter, r *http.Request) {
-	ctx, _ := jsonapi.FromContext(r.Context())
+	ctx := jsonapi.FromContext(r.Context())
 	item, ok := n[ctx.ResourceID]
 	if !ok {
 		server.Error(w, errors.New("not found"), http.StatusNotFound)
@@ -215,7 +215,7 @@ func (n nodeResource) updateNode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (n nodeResource) deleteNode(w http.ResponseWriter, r *http.Request) {
-	ctx, _ := jsonapi.FromContext(r.Context())
+	ctx := jsonapi.FromContext(r.Context())
 	delete(n, ctx.ResourceID)
 	server.Write(w, nil, http.StatusNoContent)
 }

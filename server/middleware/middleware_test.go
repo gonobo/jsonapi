@@ -48,7 +48,7 @@ func TestPageQueryParser(t *testing.T) {
 		{
 			name: "parses page query params",
 			options: []server.Options{
-				middleware.UsePaginationQueryParser(page.CursorNavigationParser{}),
+				middleware.UsePageQueryParser(page.CursorNavigationParser{}),
 			},
 			muxconfig: func(t *testing.T, rm *server.ResourceMux) {
 				rm.Handle("things", http.HandlerFunc(

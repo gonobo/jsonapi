@@ -9,8 +9,7 @@ import (
 )
 
 var (
-	errNotFound       = errors.New("resource not found")
-	errMissingContext = errors.New("missing jsonapi context; did you wrap handler with server.Handle()?")
+	errNotFound = errors.New("resource not found")
 )
 
 // Handler wraps an http handler, providing JSON:API context to downstream
@@ -98,12 +97,12 @@ func (m ResourceMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // If the request method does not conform to the JSON:API specification,
 // the request is rejected with a 405 Method Not Allowed response.
 type Resource struct {
-	Refs   http.Handler // Refs handles requests to resource relationships.
-	Create http.Handler // Create handles requests to create new resources.
-	List   http.Handler // List handles requests to list resource collections.
-	Get    http.Handler // Get handles requests to fetch a specific resource.
-	Update http.Handler // Update handles requests to update a specific resource.
-	Delete http.Handler // Delete handles requests to delete a specific resource.
+	Relationships http.Handler // Relationships handles requests to resource relationships.
+	Create        http.Handler // Create handles requests to create new resources.
+	List          http.Handler // List handles requests to list resource collections.
+	Get           http.Handler // Get handles requests to fetch a specific resource.
+	Update        http.Handler // Update handles requests to update a specific resource.
+	Delete        http.Handler // Delete handles requests to delete a specific resource.
 }
 
 // ServeHTTP routes incoming JSON:API requests to the appropriate resource operation.
@@ -115,8 +114,8 @@ func (h Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 2) handle resource requests
 	// 3) handle resource collection requests
 
-	if ctx.Relationship != "" && h.Refs != nil {
-		h.Refs.ServeHTTP(w, r)
+	if ctx.Relationship != "" && h.Relationships != nil {
+		h.Relationships.ServeHTTP(w, r)
 		return
 	}
 
@@ -185,23 +184,23 @@ func methodNotAllowed(w http.ResponseWriter) {
 //
 // Relationship instances can be used alone or as a handler to a [Resource] instance's Ref field.
 type Relationship struct {
-	GetRef    http.Handler // GetRef handles requests to fetch a specific resource relationship.
-	UpdateRef http.Handler // UpdateRef handles requests to update a specific resource relationship.
-	AddRef    http.Handler // AddRef handles requests to add a specific resource relationship.
-	RemoveRef http.Handler // RemoveRef handles requests to remove a specific resource relationship.
+	Get       http.Handler // Get handles requests to fetch a specific resource relationship.
+	Update    http.Handler // Update handles requests to update a specific resource relationship.
+	AddRef    http.Handler // AddRef handles requests to add references to a specific resource relationship.
+	RemoveRef http.Handler // RemoveRef handles requests to remove references from a specific resource relationship.
 }
 
 // ServeHTTP handles incoming JSON:API requests for resource relationships.
 func (h Relationship) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		serveIfNotNil(w, r, h.GetRef, h.GetRef == nil)
+		serveIfNotNil(w, r, h.Get, h.Get == nil)
 		return
 	case http.MethodPost:
 		serveIfNotNil(w, r, h.AddRef, h.AddRef == nil)
 		return
 	case http.MethodPatch:
-		serveIfNotNil(w, r, h.UpdateRef, h.UpdateRef == nil)
+		serveIfNotNil(w, r, h.Update, h.Update == nil)
 		return
 	case http.MethodDelete:
 		serveIfNotNil(w, r, h.RemoveRef, h.RemoveRef == nil)
@@ -226,4 +225,48 @@ func (h RelationshipMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := jsonapi.FromContext(r.Context())
 	handler, ok := h[ctx.Relationship]
 	serveIfNotNil(w, r, handler, !ok)
+}
+
+// HandleDefaultRoutes creates a serve mux that wraps a jsonapi handler.
+// The mux is configured to handle the following routes:
+//
+//	"/:type"                         // ResourceType (GET, POST)
+//	"/:type/:id"                     // ResourceType, ResourceID (GET, PATCH, DELETE)
+//	"/:type/:id/relationships/:ref"  // ResourceType, ResourceID, Relationship (GET, PATCH, POST, DELETE)
+//	"/:type/:id/:rel"                // ResourceType, ResourceID, Relationship, Related (GET)
+func HandleDefaultRoutes(handler Handler) *http.ServeMux {
+	handler.contextResolver = jsonapi.ContextResolverFunc(
+		func(r *http.Request) (*jsonapi.RequestContext, error) {
+			resourceType := r.PathValue("type")
+			resourceID := r.PathValue("id")
+			relationship := r.PathValue("ref")
+			related := false
+
+			if rel := r.PathValue("rel"); rel != "" {
+				relationship = rel
+				related = true
+			}
+
+			return &jsonapi.RequestContext{
+				ResourceType: resourceType,
+				ResourceID:   resourceID,
+				Relationship: relationship,
+				Related:      related,
+			}, nil
+		},
+	)
+
+	mux := http.NewServeMux()
+	mux.Handle("GET /{type}", handler)
+	mux.Handle("POST /{type}", handler)
+	mux.Handle("GET /{type}/{id}", handler)
+	mux.Handle("PATCH /{type}/{id}", handler)
+	mux.Handle("DELETE /{type}/{id}", handler)
+	mux.Handle("GET /{type}/{id}/{rel}", handler)
+	mux.Handle("GET /{type}/{id}/relationships/{ref}", handler)
+	mux.Handle("POST /{type}/{id}/relationships/{ref}", handler)
+	mux.Handle("PATCH /{type}/{id}/relationships/{ref}", handler)
+	mux.Handle("DELETE /{type}/{id}/relationships/{ref}", handler)
+
+	return mux
 }

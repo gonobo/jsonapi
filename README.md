@@ -152,70 +152,90 @@ func createOrder(w *http.ResponseWriter, r *http.Request) {
 }
 ```
 
-## JSON:API Server Handlers
+## JSON:API Server
 
-This library also provides custom handlers to remove some of the boilerplate needed to adhere to the
-JSON:API specification.
+The `server` package contains structs and methods for
+handling http requests that conform to the JSON:API specification.
+
+The `server.Handler` struct wraps a standard `http.Handler` instance, inferring the JSON:API context from the request:
 
 ```go
 import (
+  "net/http"
+
   "github.com/gonobo/jsonapi/v2"
-  "github.com/gonobo/jsonapi/v2/mux"
+  "github.com/gonobo/jsonapi/v2/server"
 )
-
-func getOrder(r *http.Request) jsonapi.Response {
-  // ctx contains the JSON:API information extracted from the http request:
-  // - request type
-  // - request id
-  // - relationship name
-  // - unmarshaled payload
-  ctx, ok := jsonapi.GetContext(r.Context())
-
-  order, err := db.GetOrder(ctx.ResourceID)
-  out, err := jsonapi.Marshal(order)
-  res := jsonapi.NewResponse(http.StatusCreated)
-  res.Body = out
-  return res
-}
 
 func main() {
-  m := mux.New(
-    mux.WithRoute("orders", mux.Route{
-      // GET requests to /orders/:id will be routed to this handler.
-      Get: jsonapi.HandlerFunc(getOrder),
-      // GET requests to /orders will be routed to this handler.
-      List: jsonapi.HandlerFunc(listOrders),
-      // all other requests will return 404.
-    })
-    mux.WithRoute("customers", ...),
-    mux.WithRoute("products", ...),
+  mux := http.NewServeMux()
+  mux.Handle(
+    "GET /orders/42/relationships/customer",
+    http.HandleFunc(getOrderCustomer),
   )
 
-  // Handler(h, ...opts) provides the request context using a default
-  // request context resolver. This behavior can be modified via options.
-  log.Fatal(http.ListenAndServe(":3333", jsonapi.Handler(m)))
+  handler := jsonapi.Handle(mux)
+  http.ListenAndServe(":3000", handler)
 }
 
+func getOrderCustomer(w http.ResponseWriter, r *http.Request) {
+  ctx := jsonapi.Context(r.Context())
+
+  log.Printf("type: %s", ctx.ResourceType)         // "orders"
+  log.Printf("id: %s", ctx.ResourceID)             // "42"
+  log.Printf("relationship: %s", ctx.Relationship) // "customer"
+  
+  order, err := db.GetOrder(ctx, ctx.ResourceID)
+  if err != nil {
+    // return an JSON:API error document with the error message
+    // reflected in the details field.
+    server.Error(w, err, http.StatusInternalServerError)
+    return
+  }
+
+  // write the order's customer as a resource reference in the
+  // response document.
+  server.Write(w, order, http.StatusOk,
+    server.WriteRef("customer"),
+  )
+}
 ```
 
-`Route` also implements `jsonapi.Handler`, so you skip using `Mux` if you don't need it.
-This could be useful in serverless scenarios whose compute only serves a specific
-resource or operation:
+There are additional handlers that can take care of routing requests
+to their proper handler:
 
 ```go
+import (
+  "net/http"
 
-jsonapi.Handler(mux.Route{
-  Get: jsonapi.HandlerFunc(getOrder),
-})
-
-// OR
-
-jsonapi.Handler(jsonapi.HandlerFunc(getOrder),
-  func(h *jsonapi.H) {
-    h.RequestContextResolver = MyCustomContextResolver()
-  },
+  "github.com/gonobo/jsonapi/v2"
+  "github.com/gonobo/jsonapi/v2/server"
 )
+
+func main() {
+  mux := http.NewServeMux()
+  mux.Handle("/",
+    server.ResourceMux{
+      "orders": server.Resource{
+        Get:             http.HandlerFunc(getOrder),
+        Create:          http.HandlerFunc(createOrder),
+        List:            http.HandlerFunc(searchOrders),
+        Relationships:   server.RelationshipMux{
+          "customer": server.Relationship{
+            Get: http.HandlerFunc(getOrderCustomer),
+          },
+        },
+      },
+    },
+  )
+
+  handler := jsonapi.Handle(mux)
+  http.ListenAndServe(":3000", handler)
+}
 ```
+
+The handlers only deal with `http.Handler` instances so you can
+control the degree of precision.
 
 ## Examples
 

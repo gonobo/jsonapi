@@ -217,12 +217,12 @@ func main() {
   mux.Handle("/",
     server.ResourceMux{
       "orders": server.Resource{
-        Get:             http.HandlerFunc(getOrder),
-        Create:          http.HandlerFunc(createOrder),
-        List:            http.HandlerFunc(searchOrders),
+        Get:             http.HandlerFunc(getOrder),      // GET /orders/42
+        Create:          http.HandlerFunc(createOrder),   // POST /orders
+        List:            http.HandlerFunc(searchOrders),  // GET /orders
         Relationships:   server.RelationshipMux{
           "customer": server.Relationship{
-            Get: http.HandlerFunc(getOrderCustomer),
+            Get: http.HandlerFunc(getOrderCustomer),      // GET /orders/42/relationships/customer
           },
         },
       },

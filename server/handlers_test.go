@@ -222,9 +222,9 @@ func (n nodeResource) deleteNode(w http.ResponseWriter, r *http.Request) {
 
 func newNodeResourceHandler(n nodeResource) server.Resource {
 	return server.Resource{
-		Refs: server.RelationshipMux{
+		Relationships: server.RelationshipMux{
 			"children": server.Relationship{
-				GetRef: http.HandlerFunc(n.getNodeChildren),
+				Get: http.HandlerFunc(n.getNodeChildren),
 			},
 		},
 		Create: http.HandlerFunc(n.createNode),

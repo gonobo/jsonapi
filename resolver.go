@@ -3,8 +3,8 @@ package jsonapi
 import (
 	"fmt"
 	"net/http"
-	"path"
-	"strings"
+
+	"github.com/gonobo/jsonapi/v2/internal/null"
 )
 
 // URLResolver resolves urls based on the JSON:API request context.
@@ -85,35 +85,48 @@ func (fn ContextResolverFunc) ResolveContext(r *http.Request) (*RequestContext, 
 //	"/:type/:id/relationships/:ref"  // ResourceType, ResourceID, Relationship
 //	"/:type/:id/:ref"                // ResourceType, ResourceID, Relationship, Related
 func DefaultContextResolver() ContextResolverFunc {
+	return ContextResolverWithPrefix("")
+}
+
+// ContextResolverWithPrefix returns a resolver that populates a JSON:API context
+// based on the URL path examples given by the JSON:API specification:
+//
+//	"/prefix/:type"                         // ResourceType
+//	"/prefix/:type/:id"                     // ResourceType, ResourceID
+//	"/prefix/:type/:id/relationships/:ref"  // ResourceType, ResourceID, Relationship
+//	"/prefix/:type/:id/:ref"                // ResourceType, ResourceID, Relationship, Related
+//
+// The specified prefix should start -- but not end -- with a forward slash.
+func ContextResolverWithPrefix(prefix string) ContextResolverFunc {
 	return func(r *http.Request) (*RequestContext, error) {
-		// remove the leading slash from the path so we can count segments
-		urlPath := strings.TrimLeft(r.URL.Path, "/")
-		segments := strings.Split(urlPath, "/")
+		var (
+			mux = http.NewServeMux()
+			w   = null.Writer{}
+			h   = null.Handler{}
+			ctx = RequestContext{}
+		)
 
-		if urlPath == "" {
-			return nil, jsonapiError("empty path")
+		// use the serve mux path parser to extract path values from the request url.
+		mux.Handle(fmt.Sprintf("%s/{jsonapi_type}", prefix), h)
+		mux.Handle(fmt.Sprintf("%s/{jsonapi_type}/{jsonapi_id}", prefix), h)
+		mux.Handle(fmt.Sprintf("%s/{jsonapi_type}/{jsonapi_id}/relationships/{jsonapi_relationship}", prefix), h)
+		mux.Handle(fmt.Sprintf("%s/{jsonapi_type}/{jsonapi_id}/{jsonapi_related}", prefix), h)
+		mux.ServeHTTP(w, r)
+
+		ctx.ResourceType = r.PathValue("jsonapi_type")
+		if ctx.ResourceType == "" {
+			return nil, jsonapiError("unspecified resource type")
 		}
 
-		var ctx RequestContext
+		ctx.ResourceID = r.PathValue("jsonapi_id")
+		ctx.Relationship = r.PathValue("jsonapi_relationship")
 
-		if ok, _ := path.Match("*/*/relationships/*", urlPath); ok {
-			// :type/:id/relationships/:relationship
-			ctx.ResourceType = segments[0]
-			ctx.ResourceID = segments[1]
-			ctx.Relationship = segments[3]
-		} else if ok, _ := path.Match("*/*/*", urlPath); ok {
-			// :type/:id/:relationship
-			ctx.ResourceType = segments[0]
-			ctx.ResourceID = segments[1]
-			ctx.Relationship = segments[2]
+		related := r.PathValue("jsonapi_related")
+		if related != "" {
 			ctx.Related = true
-		} else if ok, _ := path.Match("*/*", urlPath); ok {
-			// :type/:id
-			ctx.ResourceType = segments[0]
-			ctx.ResourceID = segments[1]
+			ctx.Relationship = related
 		}
 
-		ctx.ResourceType = segments[0]
 		return &ctx, nil
 	}
 }

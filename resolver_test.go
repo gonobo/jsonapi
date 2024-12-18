@@ -106,6 +106,12 @@ func TestContextResolver(t *testing.T) {
 			url:      "http://api.foo.com/items/1/relationships/foo",
 			want:     jsonapi.RequestContext{ResourceType: "items", ResourceID: "1", Relationship: "foo"},
 		},
+		{
+			name:     "prefixed resource relationship with absolute url",
+			resolver: jsonapi.ContextResolverWithPrefix("/v2"),
+			url:      "http://api.foo.com/v2/items/1/relationships/foo",
+			want:     jsonapi.RequestContext{ResourceType: "items", ResourceID: "1", Relationship: "foo"},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			req, err := http.NewRequest("GET", tc.url, nil)
